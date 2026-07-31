@@ -152,6 +152,7 @@ model Redemption {
   cost            Int
   discountCode    String?
   discountNodeGid String?
+  creditAmount    Int? // store-credit mode: the currency amount actually credited (for a correct idempotent replay)
   status          String  @default("PENDING") // PENDING | ISSUED | FAILED
   idempotencyKey  String
 

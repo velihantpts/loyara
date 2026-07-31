@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import { applyEntry } from "../loyalty/points.server";
 
 // Shopify Flow ACTION handler: "Adjust loyalty points".
@@ -38,6 +39,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, payload } = await authenticate.flow(request);
   const shop = session.shop;
 
+  // Gate on programActive, exactly like every other earn path — a paused program
+  // must not keep mutating points/VIP via a still-wired Flow.
+  const cfg = await prisma.shopConfig.findUnique({
+    where: { shop },
+    select: { programActive: true },
+  });
+  if (!cfg || !cfg.programActive)
+    return json({ ok: false, error: "program_off" }, { status: 409 });
+
   const props = (payload?.properties ?? {}) as Record<string, unknown>;
   const customerGid = toCustomerGid(props.customer_id);
   const points = Math.trunc(Number(props.points));
@@ -50,11 +60,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (Math.abs(points) > MAX_MAGNITUDE)
     return json({ ok: false, error: "points magnitude too large" }, { status: 400 });
 
-  // Idempotency: one apply per Flow action run. Fall back to a stable synthetic
-  // key if action_run_id is somehow absent (shouldn't be) so we never collide.
-  const runId =
-    String(payload?.action_run_id ?? "") ||
-    `${customerGid}:${points}:${payload?.action_definition_id ?? "flow"}`;
+  // Idempotency = one apply per Flow action run. action_run_id is unique per run;
+  // do NOT synthesize a content-derived key when it's missing — that would collide
+  // for two legitimately distinct runs with the same (customer, points) and
+  // silently drop the second award. Require the real id instead.
+  const runId = String(payload?.action_run_id ?? "").trim();
+  if (!runId)
+    return json({ ok: false, error: "missing action_run_id" }, { status: 400 });
 
   const res = await applyEntry({
     shop,

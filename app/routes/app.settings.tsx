@@ -524,17 +524,6 @@ export default function Settings() {
                   : "Pro"
               }
             />
-            <Checkbox
-              label="Send retention nudge emails"
-              checked={nudgeEmails}
-              onChange={setNudge}
-              disabled={!hasPro}
-              helpText={
-                hasPro
-                  ? "Emails members when their points are about to expire and when they're close to their next reward. Skipped automatically if you use Klaviyo (build those flows there instead)."
-                  : "Pro"
-              }
-            />
             <TextField
               label="Klaviyo private API key (integration)"
               autoComplete="off"

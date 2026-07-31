@@ -50,8 +50,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       currency,
       redemptionMode,
       balance,
-      // Only the tiers the member can actually afford right now.
-      tiers: tiers.filter((t) => balance >= t.points),
+      // Only the tiers the member can afford right now — and nothing while the
+      // program is paused (redeem() would reject them anyway).
+      tiers: active ? tiers.filter((t) => balance >= t.points) : [],
     }),
   );
 };

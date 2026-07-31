@@ -35,7 +35,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return cors(json({ ok: false, error: "bad_request" }, { status: 400 }));
 
   // Offline admin client for the shop — needed to mint the discount / issue credit.
-  const { admin } = await unauthenticated.admin(shop);
+  // Throws if the shop has no offline session (uninstalled / mid-reinstall);
+  // return a clean 503 rather than an uncaught 500. This runs BEFORE any debit.
+  const adminCtx = await unauthenticated.admin(shop).catch((e: unknown) => {
+    console.warn("[checkout.redeem] no offline session for", shop, e);
+    return null;
+  });
+  if (!adminCtx)
+    return cors(json({ ok: false, error: "unavailable" }, { status: 503 }));
+  const { admin } = adminCtx;
 
   const result = await redeem({
     shop,
