@@ -51,10 +51,10 @@ export async function earnFromOrder(
     where: { shop_shopifyGid: { shop, shopifyGid: customerGid } },
     select: { lifetimeEarned: true },
   });
-  const mult = vipMultiplier(
-    existing?.lifetimeEarned ?? 0,
-    parseVipTiers(cfg.vipTiers),
-  );
+  // VIP multipliers are Pro-only — ignore stored tiers on a free/downgraded plan.
+  const mult = cfg.isPro
+    ? vipMultiplier(existing?.lifetimeEarned ?? 0, parseVipTiers(cfg.vipTiers))
+    : 1;
 
   const points = Math.floor(basis * cfg.pointsPerDollar * mult);
   if (points <= 0) return;

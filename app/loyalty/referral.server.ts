@@ -39,6 +39,7 @@ export async function getOrCreateReferral(
 }
 
 interface OrderRef {
+  test?: boolean;
   customer?: { admin_graphql_api_id?: string; email?: string | null } | null;
   discount_codes?: { code?: string }[];
 }
@@ -49,6 +50,7 @@ export async function attributeReferral(
   shop: string,
   payload: OrderRef,
 ): Promise<void> {
+  if (payload.test) return; // never attribute referrals on test orders
   const buyerGid = payload.customer?.admin_graphql_api_id;
   const codes = (payload.discount_codes ?? [])
     .map((d) => d.code)
@@ -56,7 +58,7 @@ export async function attributeReferral(
   if (!buyerGid || codes.length === 0) return;
 
   const cfg = await prisma.shopConfig.findUnique({ where: { shop } });
-  if (!cfg || !cfg.programActive || cfg.referralReward <= 0) return;
+  if (!cfg || !cfg.programActive || !cfg.isPro || cfg.referralReward <= 0) return;
 
   for (const code of codes) {
     const ref = await prisma.referral.findUnique({

@@ -20,7 +20,7 @@ export async function runDaily(now: Date): Promise<DailyResult> {
   // ── Expiry: points expire after N days of no EARN activity. Expire the whole
   //    balance in one EXPIRE entry (reason EXPIRE doesn't touch lifetime/VIP). ──
   const expiryShops = await prisma.shopConfig.findMany({
-    where: { pointsExpiryDays: { gt: 0 }, programActive: true },
+    where: { pointsExpiryDays: { gt: 0 }, programActive: true, isPro: true },
     select: { shop: true, pointsExpiryDays: true },
   });
   const dayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -54,7 +54,7 @@ export async function runDaily(now: Date): Promise<DailyResult> {
   // ── Birthday grants: members whose birthday MM-DD is today. ──
   const mmdd = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const bdayShops = await prisma.shopConfig.findMany({
-    where: { birthdayBonus: { gt: 0 }, programActive: true },
+    where: { birthdayBonus: { gt: 0 }, programActive: true, isPro: true },
     select: { shop: true },
   });
   for (const cfg of bdayShops) {

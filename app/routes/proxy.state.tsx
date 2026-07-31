@@ -19,7 +19,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const config = await prisma.shopConfig.findUnique({ where: { shop } });
   const tiers = parseRedeemTiers(config?.redeemTiers);
   const vipTiers = parseVipTiers(config?.vipTiers);
-  const branded = !(config?.brandingRemoved ?? false);
+  // Branding removal is Pro-only — free (or downgraded) shops always show it.
+  const branded = !((config?.brandingRemoved ?? false) && (config?.isPro ?? false));
   const active = config?.programActive ?? false;
   const currency = config?.currency ?? "USD";
   const referralEnabled =

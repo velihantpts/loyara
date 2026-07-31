@@ -155,9 +155,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     if (res.applied) {
       imported++;
-      // If the CSV carries a higher lifetime (e.g. from a "lifetime earned"
-      // column), bump it so the migrated member keeps their VIP tier.
-      if (r.lifetime && r.lifetime > r.points) {
+      // If the CSV carries a higher lifetime (e.g. a "lifetime earned" column),
+      // bump it so a migrated member keeps their VIP tier — but NEVER lower an
+      // existing member's lifetime (max against the post-applyEntry value).
+      const current = res.lifetimeEarned ?? 0;
+      if (r.lifetime && r.lifetime > current) {
         const vip = computeVipTier(r.lifetime, vipTiers);
         await prisma.customer.update({
           where: { shop_shopifyGid: { shop, shopifyGid: gid } },

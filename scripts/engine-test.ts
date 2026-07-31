@@ -180,7 +180,7 @@ async function main() {
     await ensureConfig(shop);
     await prisma.shopConfig.update({
       where: { shop },
-      data: { vipTiers: JSON.stringify([{ name: "Gold", threshold: 100, multiplier: 2 }]) },
+      data: { isPro: true, vipTiers: JSON.stringify([{ name: "Gold", threshold: 100, multiplier: 2 }]) },
     });
     await earnFromOrder(shop, order(6, "100.00"), "e"); // 100 pts, lifetime 100 → reaches Gold
     check("VIP reached at threshold", (await lifetimeOf(shop, CUST)) === 100);
@@ -205,7 +205,7 @@ async function main() {
   {
     const shop = "t10.myshopify.com";
     await ensureConfig(shop);
-    await prisma.shopConfig.update({ where: { shop }, data: { referralReward: 25 } });
+    await prisma.shopConfig.update({ where: { shop }, data: { isPro: true, referralReward: 25 } });
     const REFERRER = "gid://shopify/Customer/2";
     await prisma.referral.create({ data: { shop, code: "REF-T10", referrerGid: REFERRER } });
     await attributeReferral(shop, {
@@ -224,7 +224,7 @@ async function main() {
   {
     const shop = "t11.myshopify.com";
     await ensureConfig(shop);
-    await prisma.shopConfig.update({ where: { shop }, data: { pointsExpiryDays: 30 } });
+    await prisma.shopConfig.update({ where: { shop }, data: { isPro: true, pointsExpiryDays: 30 } });
     await earnFromOrder(shop, order(30, "100.00"), "e");
     await runDaily(new Date(Date.now() + 40 * 24 * 60 * 60 * 1000)); // 40 days later
     check("expiry: inactive balance → 0", (await balanceOf(shop, CUST)) === 0, `got ${await balanceOf(shop, CUST)}`);
@@ -234,7 +234,7 @@ async function main() {
   {
     const shop = "t12.myshopify.com";
     await ensureConfig(shop);
-    await prisma.shopConfig.update({ where: { shop }, data: { pointsExpiryDays: 30 } });
+    await prisma.shopConfig.update({ where: { shop }, data: { isPro: true, pointsExpiryDays: 30 } });
     await earnFromOrder(shop, order(31, "50.00"), "e");
     await runDaily(new Date()); // today → within window
     check("expiry: recent balance survives (50)", (await balanceOf(shop, CUST)) === 50, `got ${await balanceOf(shop, CUST)}`);

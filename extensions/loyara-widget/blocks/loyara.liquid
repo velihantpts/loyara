@@ -162,8 +162,18 @@
           .then(function(r){return r.json();})
           .then(function(d){
             var out = document.getElementById("loyara-redeem-out");
-            if (d && d.ok){ out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out); load(true); }
-            else { btn.disabled=false; btn.textContent="Redeem"; out.innerHTML='<div class="loyara-msg">'+(d&&d.error==="insufficient"?"Not enough points yet.":"That didn’t work—please try again.")+'</div>'; }
+            if (d && d.ok){
+              out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out);
+              // Update balance IN PLACE — never rebuild the panel here (that would wipe the code above).
+              if (state) state.balance = Math.max(0, state.balance - (d.cost||0));
+              var balEl = content.querySelector('.bal'); if (balEl) balEl.textContent = n(state.balance)+' pts';
+              if (badge) badge.textContent = '· '+n(state.balance);
+              content.querySelectorAll('button[data-redeem]').forEach(function(b){
+                var t = state && state.tiers[parseInt(b.getAttribute('data-redeem'),10)];
+                delete b.dataset.key; b.textContent='Redeem'; b.disabled = !(t && state.balance >= t.points);
+              });
+            }
+            else { btn.disabled=false; btn.textContent="Redeem"; delete btn.dataset.key; out.innerHTML='<div class="loyara-msg">'+(d&&d.error==="insufficient"?"Not enough points yet.":"That didn’t work—please try again.")+'</div>'; }
           })
           .catch(function(){ btn.disabled=false; btn.textContent="Redeem"; });
       }
@@ -174,7 +184,7 @@
           .then(function(r){return r.json();})
           .then(function(d){
             var out = document.getElementById("loyara-refer-out");
-            if (d && d.ok){ out.innerHTML = '<div class="loyara-msg">Friends get '+money(d.friendDiscount)+' off. You earn '+n(d.reward)+' points per order.</div><div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out); btn.style.display="none"; }
+            if (d && d.ok){ var share = location.origin+'/discount/'+encodeURIComponent(d.code); out.innerHTML = '<div class="loyara-msg">Friends get '+money(d.friendDiscount)+' off. You earn '+n(d.reward)+' points per order.</div><div class="loyara-code">'+esc(d.code)+'</div><div class="loyara-actions"><button class="loyara-btn sec" data-copy="'+esc(share)+'">Copy share link</button></div>'; bindCopy(out); btn.style.display="none"; }
             else { btn.disabled=false; btn.textContent="Get my referral code"; out.innerHTML='<div class="loyara-msg">Referrals aren’t available right now.</div>'; }
           })
           .catch(function(){ btn.disabled=false; btn.textContent="Get my referral code"; });

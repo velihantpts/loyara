@@ -123,6 +123,9 @@ export async function redeem(args: {
     const again = await prisma.redemption.findUnique({
       where: { shop_idempotencyKey: { shop, idempotencyKey } },
     });
+    // A key belongs to one customer — don't hand its code to a racing stranger.
+    if (again && again.customerId !== requester.id)
+      return { ok: false, error: "forbidden" };
     if (again?.status === "ISSUED" && again.discountCode)
       return { ok: true, code: again.discountCode, cost: again.cost };
     if (again?.status === "PENDING") return { ok: false, error: "pending" };
@@ -143,7 +146,7 @@ export async function redeem(args: {
       data: { status: "ISSUED", discountCode: code, discountNodeGid: nodeId },
     });
     // Best-effort: email the code to the customer so it's never lost.
-    if (cfg.emailNotifications && debit.customerId) {
+    if (cfg.emailNotifications && cfg.isPro && debit.customerId) {
       void emailRedemptionCode(shop, debit.customerId, code).catch(() => {});
     }
     return { ok: true, code, cost };

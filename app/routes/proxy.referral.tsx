@@ -1,8 +1,11 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getOrCreateReferral } from "../loyalty/referral.server";
+
+export const loader = async (_: LoaderFunctionArgs) =>
+  json({ error: "method_not_allowed" }, { status: 405 });
 
 // App Proxy: POST /apps/loyalty/referral  → /proxy/referral
 // Returns (creating on first call) the logged-in customer's shareable referral

@@ -1,7 +1,11 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { redeem } from "../loyalty/redeem.server";
+
+// Clean 405 for GET/HEAD probes so bots don't trigger an unhandled exception.
+export const loader = async (_: LoaderFunctionArgs) =>
+  json({ error: "method_not_allowed" }, { status: 405 });
 
 // App Proxy: POST /apps/loyalty/redeem  → /proxy/redeem
 // Authoritative redemption. Must be logged in (signed logged_in_customer_id).

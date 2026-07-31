@@ -264,6 +264,8 @@ export default function Settings() {
                 value={expiry}
                 onChange={setExpiry}
                 min={0}
+                disabled={!hasPro}
+                helpText={hasPro ? undefined : "Pro"}
               />
             </InlineGrid>
           </BlockStack>
