@@ -1,0 +1,20 @@
+# Loyara — checkout UI extension. Lets a logged-in member spend loyalty points
+# right in checkout (next to the discount-code field) instead of leaving to the
+# storefront widget. Redemption goes through the app backend (/checkout/*), which
+# reuses the same idempotent, fraud-safe redeem() flow as the widget.
+#
+# Deployed with `shopify app deploy` (Partner-side) — a Coolify redeploy does NOT
+# push checkout extensions. network_access lets it call the app backend.
+api_version = "2026-07"
+
+[[extensions]]
+name = "Loyara points at checkout"
+handle = "loyara-checkout"
+type = "ui_extension"
+
+  [[extensions.targeting]]
+  module = "./src/Checkout.tsx"
+  target = "purchase.checkout.reductions.render-after"
+
+  [extensions.capabilities]
+  network_access = true
