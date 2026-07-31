@@ -66,6 +66,7 @@
 
   <script>
     (function () {
+      function init() {
       var launcher = document.getElementById("loyara-launcher");
       var panel = document.getElementById("loyara-panel");
       var content = document.getElementById("loyara-content");
@@ -227,6 +228,12 @@
       closeBtn.addEventListener("click",function(){ setOpen(false); launcher.focus(); });
       document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&panel.classList.contains("open")) setOpen(false); });
       document.addEventListener("click",function(e){ if(panel.classList.contains("open")&&!panel.contains(e.target)&&!launcher.contains(e.target)) setOpen(false); });
+      }
+      // Defer setup to idle time so the widget never competes with storefront
+      // paint (it makes 0 network requests until opened anyway). 2s timeout so it
+      // still initialises promptly on a busy main thread.
+      if ("requestIdleCallback" in window) requestIdleCallback(init, { timeout: 2000 });
+      else setTimeout(init, 1);
     })();
   </script>
 {% endif %}

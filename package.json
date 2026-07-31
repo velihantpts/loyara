@@ -13,6 +13,7 @@
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate deploy",
     "check-env": "node scripts/check-env.mjs",
+    "check:widget": "node scripts/widget-size.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
     "shopify": "shopify",
