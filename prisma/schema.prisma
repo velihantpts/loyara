@@ -78,6 +78,16 @@ model ShopConfig {
   updatedAt DateTime @updatedAt
 }
 
+// A named advisory lock so a scheduled job (the daily cron) can't run twice
+// concurrently — a duplicate/overlapping invocation (Coolify retry after a slow
+// run, or manual + scheduled) would double-fire member notifications. Held for a
+// TTL and stealable once stale, so a crashed run never wedges the job forever.
+model CronLock {
+  name      String   @id // e.g. "daily"
+  token     String // per-run owner token; release only deletes our own lock
+  expiresAt DateTime // stale after this instant → a later run may steal it
+}
+
 // ── 3. LOYALTY DOMAIN ────────────────────────────────────────────────────────
 
 // A loyalty member. `balance` is the DENORMALIZED cache = SUM(ledger.delta); it

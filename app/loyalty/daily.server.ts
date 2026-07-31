@@ -8,6 +8,7 @@
 // deliverability + compliance liability. Native nudges can return once we sync
 // Shopify emailMarketingConsent and ship a real unsubscribe flow.
 
+import crypto from "node:crypto";
 import prisma from "../db.server";
 import { applyEntry } from "./points.server";
 import { earnBirthday } from "./earn.server";
@@ -17,15 +18,57 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Warn members this many days before their points expire. Only applies when the
 // expiry window is longer than the warning lead time.
 const EXPIRY_WARN_DAYS = 7;
+const LOCK_NAME = "daily";
+// A daily run is short; if one is still "held" after this it must have crashed,
+// so a later run may steal the lock.
+const LOCK_TTL_MS = 30 * 60 * 1000;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export interface DailyResult {
   expiredMembers: number;
   birthdayGrants: number;
   expiringSoonWarned: number; // expiry warnings emitted as Klaviyo events
+  skipped?: boolean; // true when another run held the lock (no work done)
+}
+
+// Claim the named lock. Returns an owner token on success, null if a live lock is
+// already held. Atomic under SQLite's single-writer model: create wins if no row
+// exists; otherwise a conditional updateMany steals ONLY an expired lock, and two
+// racers can't both steal (the first bumps expiresAt into the future).
+async function acquireLock(now: Date): Promise<string | null> {
+  const token = crypto.randomBytes(8).toString("hex");
+  const expiresAt = new Date(now.getTime() + LOCK_TTL_MS);
+  try {
+    await prisma.cronLock.create({ data: { name: LOCK_NAME, token, expiresAt } });
+    return token;
+  } catch {
+    const stolen = await prisma.cronLock.updateMany({
+      where: { name: LOCK_NAME, expiresAt: { lt: now } },
+      data: { token, expiresAt },
+    });
+    return stolen.count > 0 ? token : null;
+  }
+}
+
+// Release only OUR lock (token match), so if our run overran and a later run
+// legitimately stole it, our release doesn't yank the new owner's lock.
+async function releaseLock(token: string): Promise<void> {
+  await prisma.cronLock.deleteMany({ where: { name: LOCK_NAME, token } });
 }
 
 export async function runDaily(now: Date): Promise<DailyResult> {
+  const token = await acquireLock(now);
+  if (!token) {
+    return { expiredMembers: 0, birthdayGrants: 0, expiringSoonWarned: 0, skipped: true };
+  }
+  try {
+    return await runDailyInner(now);
+  } finally {
+    await releaseLock(token);
+  }
+}
+
+async function runDailyInner(now: Date): Promise<DailyResult> {
   let expiredMembers = 0;
   let birthdayGrants = 0;
   let expiringSoonWarned = 0;
@@ -59,14 +102,21 @@ export async function runDaily(now: Date): Promise<DailyResult> {
         expiryWarnedFor: true,
       },
     });
+    // Last EARN per member in ONE aggregate, instead of a findFirst per member
+    // (was an N+1 that grew the run past cron timeouts at scale).
+    const lastEarns = await prisma.pointsLedger.groupBy({
+      by: ["customerId"],
+      where: { shop: cfg.shop, reason: { startsWith: "EARN" } },
+      _max: { createdAt: true },
+    });
+    const lastEarnAt = new Map<string, Date>();
+    for (const r of lastEarns) {
+      if (r._max.createdAt) lastEarnAt.set(r.customerId, r._max.createdAt);
+    }
     for (const c of customers) {
-      const lastEarn = await prisma.pointsLedger.findFirst({
-        where: { shop: cfg.shop, customerId: c.id, reason: { startsWith: "EARN" } },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-      });
+      const lastEarn = lastEarnAt.get(c.id);
       if (!lastEarn) continue;
-      if (lastEarn.createdAt < cutoff) {
+      if (lastEarn < cutoff) {
         const res = await applyEntry({
           shop: cfg.shop,
           customerGid: c.shopifyGid,
@@ -81,17 +131,17 @@ export async function runDaily(now: Date): Promise<DailyResult> {
       }
       // Expiring soon: inside the warning window, has an email, and not already
       // warned for THIS earn cycle (keyed on the last-earn timestamp).
-      const earnKey = lastEarn.createdAt.toISOString();
+      const earnKey = lastEarn.toISOString();
       if (
         warnCutoff &&
-        lastEarn.createdAt < warnCutoff &&
+        lastEarn < warnCutoff &&
         cfg.klaviyoApiKey &&
         c.email &&
         c.expiryWarnedFor !== earnKey
       ) {
         const daysLeft = Math.max(
           0,
-          Math.ceil((lastEarn.createdAt.getTime() - cutoff.getTime()) / DAY_MS),
+          Math.ceil((lastEarn.getTime() - cutoff.getTime()) / DAY_MS),
         );
         klaviyoEvent(
           cfg.klaviyoApiKey,

@@ -88,6 +88,7 @@ async function main() {
   await prisma.referral.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.shopConfig.deleteMany({});
+  await prisma.cronLock.deleteMany({});
 
   // 1. Idempotent accrual
   {
@@ -238,6 +239,34 @@ async function main() {
     await earnFromOrder(shop, order(31, "50.00"), "e");
     await runDaily(new Date()); // today → within window
     check("expiry: recent balance survives (50)", (await balanceOf(shop, CUST)) === 50, `got ${await balanceOf(shop, CUST)}`);
+  }
+
+  // 13. Cron overlap lock — a run held by another owner is skipped, no work done
+  {
+    const shop = "t13.myshopify.com";
+    await ensureConfig(shop);
+    await prisma.shopConfig.update({ where: { shop }, data: { isPro: true, pointsExpiryDays: 30 } });
+    await earnFromOrder(shop, order(32, "100.00"), "e");
+    const runNow = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000); // 40 days later
+    // Simulate a concurrent run holding a lock that is live AT runNow.
+    await prisma.cronLock.create({
+      data: { name: "daily", token: "other", expiresAt: new Date(runNow.getTime() + 60_000) },
+    });
+    const skipped = await runDaily(runNow);
+    check("cron lock: concurrent run skipped", skipped.skipped === true);
+    check(
+      "cron lock: skipped run did no expiry",
+      (await balanceOf(shop, CUST)) === 100,
+      `got ${await balanceOf(shop, CUST)}`,
+    );
+    // Once the lock is gone, the next run proceeds normally.
+    await prisma.cronLock.deleteMany({ where: { name: "daily" } });
+    await runDaily(runNow);
+    check("cron lock: released → run proceeds (expired to 0)", (await balanceOf(shop, CUST)) === 0);
+    check(
+      "cron lock: run released its own lock",
+      (await prisma.cronLock.count()) === 0,
+    );
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
