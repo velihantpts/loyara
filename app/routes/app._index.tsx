@@ -139,6 +139,42 @@ export default function Index() {
           />
         </InlineGrid>
 
+        {/* Program health — the anti-churn view: is the program actually being
+            used? All computed from the ledger, no extra order queries. */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h3" variant="headingMd">
+              Program health
+            </Text>
+            <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="300">
+              <Stat
+                label="Active members"
+                value={`${nf.format(data.stats.activeMembers)} of ${nf.format(data.stats.members)}`}
+              />
+              <Stat
+                label="Members who redeemed"
+                value={nf.format(data.stats.redeemingMembers)}
+              />
+              <Stat
+                label="Redemption rate"
+                value={`${Math.round(data.stats.redemptionRate * 100)}%`}
+              />
+              <Stat
+                label="Avg active balance"
+                value={nf.format(data.stats.avgBalance)}
+              />
+            </InlineGrid>
+            <Text as="p" variant="bodySm" tone="subdued">
+              Redemption rate is points spent vs issued — a healthy program keeps
+              it moving, because points customers actually redeem are what bring
+              them back.
+              {data.stats.pointsExpired > 0
+                ? ` ${nf.format(data.stats.pointsExpired)} points have expired so far.`
+                : ""}
+            </Text>
+          </BlockStack>
+        </Card>
+
         {/* Getting started */}
         <Card>
           <BlockStack gap="400">

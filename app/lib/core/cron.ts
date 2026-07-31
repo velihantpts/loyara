@@ -24,11 +24,14 @@ function summaryHtml(shop: string, s: Awaited<ReturnType<typeof programStats>>):
     <p style="color:#555;margin-top:0">Store: <b>${shop}</b></p>
     <table style="width:100%;border-collapse:collapse;margin-top:12px">
       ${row("Members", s.members)}
+      ${row("Active members (holding points)", s.activeMembers)}
+      ${row("Members who redeemed", s.redeemingMembers)}
       ${row("Points issued (lifetime)", s.pointsIssued)}
       ${row("Points redeemed (lifetime)", s.pointsRedeemed)}
+      ${row("Redemption rate (%)", Math.round(s.redemptionRate * 100))}
       ${row("Outstanding points (liability)", s.outstanding)}
     </table>
-    <p style="font-size:12px;color:#777;margin-top:16px">Outstanding points are your current liability — points members could still redeem. — ${BRAND}</p>
+    <p style="font-size:12px;color:#777;margin-top:16px">Redemption rate is points redeemed vs issued — the higher it is, the more your program is bringing customers back. Outstanding points are your current liability. — ${BRAND}</p>
   </div>`;
 }
 
