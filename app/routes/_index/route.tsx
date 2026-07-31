@@ -104,6 +104,12 @@ export default function App() {
               Add {BRAND} on the Shopify App Store
             </a>
           </div>
+          <p className={styles.text}>
+            Paying too much for Smile.io?{" "}
+            <a href="/smile-tax-calculator">
+              See how much you&rsquo;d save at your order volume →
+            </a>
+          </p>
         </header>
 
         {showForm && (

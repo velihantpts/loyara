@@ -1,6 +1,6 @@
 import { ORIGIN } from "../config";
 
-const PATHS = ["/", "/privacy"];
+const PATHS = ["/", "/privacy", "/dpa", "/smile-tax-calculator"];
 
 export const loader = () => {
   const body = `<?xml version="1.0" encoding="UTF-8"?>
