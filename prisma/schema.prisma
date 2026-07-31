@@ -61,6 +61,7 @@ model ShopConfig {
   referralReward         Int     @default(0) // points to BOTH referrer + referee on completed referral (0 = referrals off)
   referralFriendDiscount Int     @default(0) // fixed $ off the referred friend gets via the referral code
   emailNotifications     Boolean @default(false) // email customers their redemption codes
+  nudgeEmails            Boolean @default(false) // Pro: native retention nudges (expiring-soon + near-reward) for shops NOT using Klaviyo
   brandingRemoved        Boolean @default(false) // Pro only
 
   // Pro subscription mirror, kept fresh from billing so storefront/webhook paths
@@ -96,6 +97,10 @@ model Customer {
   // of the last-EARN entry we already warned about, so we warn ONCE per earn cycle.
   // A new EARN advances lastEarn, so a later warning is legitimately eligible again.
   expiryWarnedFor String?
+  // Idempotency for the "you're close to a reward" nudge: the points-cost of the
+  // reward tier we last nudged this member toward. Skips a repeat until their
+  // target tier changes (e.g. after they redeem and start climbing to a bigger one).
+  nudgedRewardFor Int?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

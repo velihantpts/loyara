@@ -45,6 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       referralReward: config.referralReward,
       referralFriendDiscount: config.referralFriendDiscount,
       emailNotifications: config.emailNotifications,
+      nudgeEmails: config.nudgeEmails,
       klaviyoApiKey: config.klaviyoApiKey ?? "",
       brandingRemoved: config.brandingRemoved,
       redemptionMode: parseRedemptionMode(config.redemptionMode),
@@ -63,6 +64,7 @@ interface Payload {
   referralReward: number;
   referralFriendDiscount: number;
   emailNotifications: boolean;
+  nudgeEmails: boolean;
   klaviyoApiKey: string;
   brandingRemoved: boolean;
   redemptionMode: string;
@@ -129,6 +131,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       referralReward: hasPro ? clampInt(p.referralReward, 0) : 0,
       referralFriendDiscount: hasPro ? clampInt(p.referralFriendDiscount, 0) : 0,
       emailNotifications: hasPro ? Boolean(p.emailNotifications) : false,
+      nudgeEmails: hasPro ? Boolean(p.nudgeEmails) : false,
       klaviyoApiKey: hasPro ? (String(p.klaviyoApiKey ?? "").trim() || null) : null,
       brandingRemoved: hasPro ? Boolean(p.brandingRemoved) : false,
       // Store-credit fulfilment is Pro-only; free/downgraded shops stay on codes.
@@ -160,6 +163,7 @@ export default function Settings() {
   const [emailNotifications, setEmailNotif] = useState(
     settings.emailNotifications,
   );
+  const [nudgeEmails, setNudge] = useState(settings.nudgeEmails);
   const [klaviyoApiKey, setKlaviyo] = useState(settings.klaviyoApiKey);
   const [redemptionMode, setRedemptionMode] = useState<string>(
     settings.redemptionMode,
@@ -184,6 +188,7 @@ export default function Settings() {
     referralReward,
     friendDiscount,
     emailNotifications,
+    nudgeEmails,
     klaviyoApiKey,
     redemptionMode,
     brandingRemoved,
@@ -207,6 +212,7 @@ export default function Settings() {
     setReferral(v.referralReward);
     setFriendDiscount(v.friendDiscount);
     setEmailNotif(v.emailNotifications);
+    setNudge(v.nudgeEmails);
     setKlaviyo(v.klaviyoApiKey);
     setRedemptionMode(v.redemptionMode);
     setBranding(v.brandingRemoved);
@@ -228,6 +234,7 @@ export default function Settings() {
       referralReward: Number(referralReward) || 0,
       referralFriendDiscount: Number(friendDiscount) || 0,
       emailNotifications,
+      nudgeEmails,
       klaviyoApiKey,
       brandingRemoved,
       redemptionMode,
@@ -247,6 +254,7 @@ export default function Settings() {
     referralReward,
     friendDiscount,
     emailNotifications,
+    nudgeEmails,
     klaviyoApiKey,
     brandingRemoved,
     redemptionMode,
@@ -513,6 +521,17 @@ export default function Settings() {
               helpText={
                 hasPro
                   ? "Sends the reward code to the customer so it's never lost."
+                  : "Pro"
+              }
+            />
+            <Checkbox
+              label="Send retention nudge emails"
+              checked={nudgeEmails}
+              onChange={setNudge}
+              disabled={!hasPro}
+              helpText={
+                hasPro
+                  ? "Emails members when their points are about to expire and when they're close to their next reward. Skipped automatically if you use Klaviyo (build those flows there instead)."
                   : "Pro"
               }
             />
