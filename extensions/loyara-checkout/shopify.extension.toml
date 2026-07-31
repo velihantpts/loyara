@@ -5,11 +5,15 @@
 #
 # Deployed with `shopify app deploy` (Partner-side) — a Coolify redeploy does NOT
 # push checkout extensions. network_access lets it call the app backend.
-api_version = "2026-07"
+# Checkout UI extensions use the React bindings (@shopify/ui-extensions-react),
+# whose newest published line is 2025-07 — so this extension pins to that API
+# version independently of the app's 2026-07 admin API.
+api_version = "2025-07"
 
 [[extensions]]
 name = "Loyara points at checkout"
 handle = "loyara-checkout"
+uid = "c0ae8ffa-078b-b2da-0137-dcf30f2b5d16d8d8402c"
 type = "ui_extension"
 
   [[extensions.targeting]]
