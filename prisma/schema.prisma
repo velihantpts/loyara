@@ -67,6 +67,7 @@ model ShopConfig {
   isPro Boolean @default(false)
   email String? // shop contact email, for the monthly summary
   currency String? // shop currency code, cached for widget labels
+  klaviyoApiKey String? // Pro: Klaviyo private API key for loyalty event + profile sync
 
   // Retention: once-only App Bridge review request at the peak-value moment.
   reviewRequestedAt DateTime?

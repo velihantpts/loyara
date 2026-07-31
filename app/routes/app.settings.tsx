@@ -45,6 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       referralReward: config.referralReward,
       referralFriendDiscount: config.referralFriendDiscount,
       emailNotifications: config.emailNotifications,
+      klaviyoApiKey: config.klaviyoApiKey ?? "",
       brandingRemoved: config.brandingRemoved,
       redeemTiers: parseRedeemTiers(config.redeemTiers),
       vipTiers: parseVipTiers(config.vipTiers),
@@ -61,6 +62,7 @@ interface Payload {
   referralReward: number;
   referralFriendDiscount: number;
   emailNotifications: boolean;
+  klaviyoApiKey: string;
   brandingRemoved: boolean;
   redeemTiers: RedeemTier[];
   vipTiers: VipTier[];
@@ -125,6 +127,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       referralReward: hasPro ? clampInt(p.referralReward, 0) : 0,
       referralFriendDiscount: hasPro ? clampInt(p.referralFriendDiscount, 0) : 0,
       emailNotifications: hasPro ? Boolean(p.emailNotifications) : false,
+      klaviyoApiKey: hasPro ? (String(p.klaviyoApiKey ?? "").trim() || null) : null,
       brandingRemoved: hasPro ? Boolean(p.brandingRemoved) : false,
       redeemTiers: JSON.stringify(redeemTiers),
       vipTiers: JSON.stringify(hasPro ? vipTiers : []),
@@ -153,6 +156,7 @@ export default function Settings() {
   const [emailNotifications, setEmailNotif] = useState(
     settings.emailNotifications,
   );
+  const [klaviyoApiKey, setKlaviyo] = useState(settings.klaviyoApiKey);
   const [brandingRemoved, setBranding] = useState(settings.brandingRemoved);
   const [redeemTiers, setRedeem] = useState<RedeemTier[]>(
     settings.redeemTiers.length
@@ -171,6 +175,7 @@ export default function Settings() {
       referralReward: Number(referralReward) || 0,
       referralFriendDiscount: Number(friendDiscount) || 0,
       emailNotifications,
+      klaviyoApiKey,
       brandingRemoved,
       redeemTiers,
       vipTiers,
@@ -188,6 +193,7 @@ export default function Settings() {
     referralReward,
     friendDiscount,
     emailNotifications,
+    klaviyoApiKey,
     brandingRemoved,
     redeemTiers,
     vipTiers,
@@ -420,6 +426,18 @@ export default function Settings() {
               helpText={
                 hasPro
                   ? "Sends the reward code to the customer so it's never lost."
+                  : "Pro"
+              }
+            />
+            <TextField
+              label="Klaviyo private API key (integration)"
+              autoComplete="off"
+              value={klaviyoApiKey}
+              onChange={setKlaviyo}
+              disabled={!hasPro}
+              helpText={
+                hasPro
+                  ? "Syncs points-earned, reward-redeemed & referral events + a loyalty_points profile property to Klaviyo for retention flows. Paste a private key (pk_…)."
                   : "Pro"
               }
             />

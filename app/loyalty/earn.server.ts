@@ -5,6 +5,7 @@
 import prisma from "../db.server";
 import { applyEntry } from "./points.server";
 import { parseVipTiers, vipMultiplier } from "./config";
+import { klaviyoEvent } from "./klaviyo.server";
 
 // Minimal shape of the orders/paid REST webhook payload we rely on.
 interface OrderPayload {
@@ -59,7 +60,7 @@ export async function earnFromOrder(
   const points = Math.floor(basis * cfg.pointsPerDollar * mult);
   if (points <= 0) return;
 
-  await applyEntry({
+  const res = await applyEntry({
     shop,
     customerGid,
     customerEmail: payload.customer?.email ?? null,
@@ -71,6 +72,16 @@ export async function earnFromOrder(
     webhookEventId,
     meta: { basis, rate: cfg.pointsPerDollar, mult },
   });
+
+  if (res.applied && cfg.isPro && cfg.klaviyoApiKey) {
+    klaviyoEvent(
+      cfg.klaviyoApiKey,
+      "Loyalty Points Earned",
+      payload.customer?.email ?? null,
+      { points, source: "order", balance: res.balance },
+      { loyalty_points: res.balance },
+    );
+  }
 }
 
 /** Signup bonus — granted once per customer on customers/create. */

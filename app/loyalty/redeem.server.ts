@@ -16,6 +16,7 @@ import prisma from "../db.server";
 import { parseRedeemTiers, type RedeemTier } from "./config";
 import { applyEntry } from "./points.server";
 import { sendEmail } from "../lib/core/email.server";
+import { klaviyoEvent } from "./klaviyo.server";
 import { BRAND } from "../config";
 
 type GraphqlAdmin = {
@@ -148,6 +149,20 @@ export async function redeem(args: {
     // Best-effort: email the code to the customer so it's never lost.
     if (cfg.emailNotifications && cfg.isPro && debit.customerId) {
       void emailRedemptionCode(shop, debit.customerId, code).catch(() => {});
+    }
+    if (cfg.isPro && cfg.klaviyoApiKey && debit.customerId) {
+      const cust = await prisma.customer.findUnique({
+        where: { id: debit.customerId },
+        select: { email: true, balance: true },
+      });
+      if (cust?.email)
+        klaviyoEvent(
+          cfg.klaviyoApiKey,
+          "Loyalty Reward Redeemed",
+          cust.email,
+          { points_spent: cost, code, balance: Math.max(0, cust.balance) },
+          { loyalty_points: Math.max(0, cust.balance) },
+        );
     }
     return { ok: true, code, cost };
   } catch (e) {
