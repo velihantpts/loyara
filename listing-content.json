@@ -1,0 +1,17 @@
+{
+  "en": {
+    "name": "Loyara Loyalty & Rewards",
+    "subtitle": "Points, referrals & VIP tiers. Flat price, unlimited orders",
+    "intro": "Points, VIP tiers & referrals for one flat monthly price — unlimited orders, no overage fees. Ever.",
+    "details": "Loyara is the flat-price loyalty program for Shopify. Customers earn points on every order and redeem them for discounts from a fast storefront widget — with VIP tiers, referrals, birthday bonuses and points expiry all included on one plan. No order-count tiers, no overage fees: your bill never changes as you grow. Switching from another loyalty app? A five-minute CSV import brings every member's point balance with you — nobody loses a point.",
+    "features": [
+      "Flat monthly price, unlimited orders — no per-order or overage fees",
+      "Points, VIP tiers, referrals & birthday bonuses — all included, nothing gated",
+      "Five-minute CSV migration — your customers keep every point",
+      "Fast widget: no external scripts, no layout shift, tiny storefront footprint"
+    ],
+    "searchTerms": ["points program", "referral program", "vip tiers", "repeat purchases", "customer retention"],
+    "titleTag": "Loyara — flat-price Shopify loyalty & rewards program",
+    "metaDescription": "A Shopify loyalty program for one flat monthly price with unlimited orders — points, VIP tiers, referrals, 5-minute migration. No order-count or overage fees."
+  }
+}
