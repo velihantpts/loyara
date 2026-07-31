@@ -1,0 +1,229 @@
+{% comment %}
+  Loyara loyalty widget — app embed block (target: body). A floating launcher that
+  opens a panel with the member's points, VIP status, progress to the next reward,
+  ways to earn, redeemable rewards (with one-tap checkout apply), referral sharing
+  and birthday capture. All data is signed via the App Proxy (/apps/loyalty/*).
+{% endcomment %}
+{% if block.settings.enable %}
+  <style>
+    #loyara-launcher {
+      position: fixed; z-index: 2147483000;
+      bottom: {{ block.settings.offset }}px; {{ block.settings.side }}: 20px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 16px; border: none; border-radius: 999px; cursor: pointer;
+      font: 600 14px/1 system-ui, -apple-system, sans-serif;
+      background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }};
+      box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    }
+    #loyara-panel {
+      position: fixed; z-index: 2147483001; display: none;
+      bottom: {{ block.settings.offset | plus: 60 }}px; {{ block.settings.side }}: 20px;
+      width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px);
+      overflow-y: auto; background: #fff; color: #1a1a1a; border-radius: 16px;
+      box-shadow: 0 12px 44px rgba(0,0,0,.24);
+      font: 14px/1.5 system-ui, -apple-system, sans-serif;
+    }
+    #loyara-panel.open { display: block; }
+    .loyara-head { padding: 18px 16px; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; }
+    .loyara-head .bal { font-size: 28px; font-weight: 700; display: block; }
+    .loyara-head .vip { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 12px; }
+    .loyara-prog { margin-top: 10px; }
+    .loyara-prog .track { height: 6px; background: rgba(255,255,255,.25); border-radius: 999px; overflow: hidden; }
+    .loyara-prog .fill { height: 6px; background: currentColor; border-radius: 999px; }
+    .loyara-prog small { display: block; margin-top: 4px; opacity: .9; font-size: 12px; }
+    .loyara-sec { padding: 14px 16px; border-bottom: 1px solid #eee; }
+    .loyara-sec:last-child { border-bottom: none; }
+    .loyara-sec h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+    .loyara-earn { display: flex; align-items: center; gap: 8px; padding: 3px 0; color: #333; }
+    .loyara-earn b { color: {{ block.settings.bg_color }}; }
+    .loyara-tier { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; }
+    .loyara-tier + .loyara-tier { border-top: 1px solid #f2f2f2; }
+    .loyara-btn { padding: 7px 12px; border: none; border-radius: 8px; cursor: pointer; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; font-weight: 600; font-size: 13px; }
+    .loyara-btn:disabled { opacity: .4; cursor: default; }
+    .loyara-btn.sec { background: #f1f3f5; color: #1a1a1a; }
+    .loyara-msg { color: #555; padding: 4px 0; }
+    .loyara-code { margin-top: 8px; padding: 10px; background: #f4f6f8; border-radius: 8px; font-family: monospace; text-align: center; font-size: 15px; letter-spacing: .05em; }
+    .loyara-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .loyara-actions a, .loyara-actions button { flex: 1; text-align: center; text-decoration: none; }
+    .loyara-actions a { padding: 8px; border-radius: 8px; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; font-weight: 600; font-size: 13px; }
+    .loyara-row { display: flex; gap: 6px; margin-top: 6px; }
+    .loyara-row input, .loyara-row select { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font: inherit; }
+    .loyara-close { position: absolute; top: 12px; {{ block.settings.side }}: 12px; background: transparent; border: none; color: {{ block.settings.text_color }}; font-size: 20px; cursor: pointer; line-height: 1; }
+    .loyara-foot { padding: 10px 16px; font-size: 11px; color: #999; text-align: center; }
+    .loyara-foot a { color: #999; }
+  </style>
+
+  <button id="loyara-launcher" aria-haspopup="dialog" aria-expanded="false" aria-controls="loyara-panel">
+    <span>{{ block.settings.label | escape }}</span>
+    <span id="loyara-badge"></span>
+  </button>
+
+  <div id="loyara-panel" role="dialog" aria-modal="false" aria-label="{{ block.settings.label | escape }}">
+    <button class="loyara-close" id="loyara-close" aria-label="Close">×</button>
+    <div id="loyara-content"><div class="loyara-sec"><div class="loyara-msg">Loading…</div></div></div>
+    <div class="loyara-foot" id="loyara-foot"></div>
+  </div>
+
+  <script>
+    (function () {
+      var launcher = document.getElementById("loyara-launcher");
+      var panel = document.getElementById("loyara-panel");
+      var content = document.getElementById("loyara-content");
+      var badge = document.getElementById("loyara-badge");
+      var footEl = document.getElementById("loyara-foot");
+      var closeBtn = document.getElementById("loyara-close");
+      var loginUrl = {{ routes.account_login_url | json }};
+      var state = null, loaded = false;
+
+      function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];}); }
+      function n(v){ return new Intl.NumberFormat().format(v); }
+      function money(v){ try { return new Intl.NumberFormat(undefined,{style:"currency",currency:(state&&state.currency)||"USD"}).format(v);}catch(e){return v+" "+((state&&state.currency)||"");} }
+      function rewardLabel(t){ return t.type==="percent" ? (t.value+"% off") : (money(t.value)+" off"); }
+      function uuid(){ if(window.crypto&&crypto.getRandomValues){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(b){return("0"+b.toString(16)).slice(-2);}).join("");} return Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
+
+      function waysToEarn(){
+        var e = state.earn, items = [];
+        if (e.pointsPerDollar>0) items.push("Earn <b>"+n(e.pointsPerDollar)+"</b> point"+(e.pointsPerDollar===1?"":"s")+" per "+money(1)+" spent");
+        if (e.signupBonus>0) items.push("<b>"+n(e.signupBonus)+"</b> points for signing up");
+        if (e.birthdayBonus>0) items.push("<b>"+n(e.birthdayBonus)+"</b> points on your birthday");
+        if (state.referralEnabled) items.push("<b>"+n(e.referralReward)+"</b> points for each friend you refer");
+        if (!items.length) return "";
+        return '<div class="loyara-sec"><h4>Ways to earn</h4>'+items.map(function(t){return '<div class="loyara-earn">'+t+'</div>';}).join("")+'</div>';
+      }
+
+      function renderLoggedOut(){
+        var e = state.earn, sell = e.signupBonus>0 ? ("Join and get <b>"+n(e.signupBonus)+"</b> points to start.") : "Join to start earning points on every order.";
+        badge.textContent = "";
+        content.innerHTML = '<div class="loyara-head"><span class="bal">Rewards</span></div>'
+          + '<div class="loyara-sec"><div class="loyara-msg">'+sell+'</div>'
+          + (loginUrl ? '<div class="loyara-actions"><a href="'+loginUrl+'">Log in / Sign up</a></div>' : '')
+          + '</div>' + waysToEarn();
+      }
+
+      function progressBar(){
+        if (!state.nextReward) return "";
+        var nr = state.nextReward, tot = nr.points, done = tot - nr.remaining, pct = Math.max(0, Math.min(100, Math.round(done/tot*100)));
+        return '<div class="loyara-prog"><div class="track"><div class="fill" style="width:'+pct+'%"></div></div>'
+          + '<small>'+n(nr.remaining)+' pts to your next reward</small></div>';
+      }
+
+      function renderLoggedIn(){
+        badge.textContent = "· " + n(state.balance);
+        var vipLine = state.vip && state.vip.current ? '<span class="vip">'+esc(state.vip.current)+'</span>' : (state.vip && state.vip.next ? '<span class="vip">'+n(state.vip.toNext)+' pts to '+esc(state.vip.next.name)+'</span>' : '');
+        var html = '<div class="loyara-head"><span class="bal">'+n(state.balance)+' pts</span>'+vipLine+progressBar()+'</div>';
+
+        // Rewards
+        html += '<div class="loyara-sec"><h4>Redeem</h4>';
+        if (!state.tiers.length) html += '<div class="loyara-msg">No rewards available yet.</div>';
+        else state.tiers.forEach(function(t,i){
+          var can = state.balance >= t.points;
+          html += '<div class="loyara-tier"><span>'+esc(rewardLabel(t))+'<br><small style="color:#888">'+n(t.points)+' pts</small></span>'
+            + '<button class="loyara-btn" data-redeem="'+i+'"'+(can?"":" disabled")+'>Redeem</button></div>';
+        });
+        html += '<div id="loyara-redeem-out"></div></div>';
+
+        html += waysToEarn();
+
+        // Referral
+        if (state.referralEnabled) html += '<div class="loyara-sec"><h4>Refer a friend</h4>'
+          + '<div class="loyara-msg">Share your code — friends get a discount, you earn points when they order.</div>'
+          + '<div class="loyara-actions"><button class="loyara-btn" id="loyara-refer">Get my referral code</button></div>'
+          + '<div id="loyara-refer-out"></div></div>';
+
+        // Birthday
+        if (state.earn.birthdayBonus>0 && !state.birthdayKnown) html += '<div class="loyara-sec"><h4>Get a birthday bonus</h4>'
+          + '<div class="loyara-row"><select id="loyara-bmonth"></select><select id="loyara-bday"></select>'
+          + '<button class="loyara-btn" id="loyara-bsave">Save</button></div><div id="loyara-b-out"></div></div>';
+
+        content.innerHTML = html;
+        wire();
+      }
+
+      function render(){
+        if (!state) return;
+        footEl.innerHTML = state.branded ? 'Powered by <a href="https://apps.shopify.com/loyara" target="_blank" rel="noopener">Loyara</a>' : "";
+        if (!state.active){ content.innerHTML = '<div class="loyara-sec"><div class="loyara-msg">The rewards program is currently paused.</div></div>'; return; }
+        if (!state.loggedIn) renderLoggedOut(); else renderLoggedIn();
+      }
+
+      function wire(){
+        content.querySelectorAll("button[data-redeem]").forEach(function(b){ b.addEventListener("click",function(){ redeem(parseInt(b.getAttribute("data-redeem"),10), b); }); });
+        var refer = document.getElementById("loyara-refer"); if (refer) refer.addEventListener("click", getReferral);
+        var bsave = document.getElementById("loyara-bsave"); if (bsave){ fillBirthday(); bsave.addEventListener("click", saveBirthday); }
+      }
+
+      function applyLink(code){ return '<div class="loyara-actions"><a href="/discount/'+encodeURIComponent(code)+'">Apply at checkout</a><button class="loyara-btn sec" data-copy="'+esc(code)+'">Copy code</button></div>'; }
+      function bindCopy(scope){ scope.querySelectorAll("button[data-copy]").forEach(function(b){ b.addEventListener("click",function(){ var c=b.getAttribute("data-copy"); if(navigator.clipboard) navigator.clipboard.writeText(c); b.textContent="Copied!"; }); }); }
+
+      function redeem(i, btn){
+        if (!btn.dataset.key) btn.dataset.key = uuid();
+        btn.disabled = true; btn.textContent = "…";
+        fetch("/apps/loyalty/redeem",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({tierIndex:i,idempotencyKey:btn.dataset.key})})
+          .then(function(r){return r.json();})
+          .then(function(d){
+            var out = document.getElementById("loyara-redeem-out");
+            if (d && d.ok){ out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out); load(true); }
+            else { btn.disabled=false; btn.textContent="Redeem"; out.innerHTML='<div class="loyara-msg">'+(d&&d.error==="insufficient"?"Not enough points yet.":"That didn’t work—please try again.")+'</div>'; }
+          })
+          .catch(function(){ btn.disabled=false; btn.textContent="Redeem"; });
+      }
+
+      function getReferral(){
+        var btn = document.getElementById("loyara-refer"); btn.disabled=true; btn.textContent="…";
+        fetch("/apps/loyalty/referral",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:"{}"})
+          .then(function(r){return r.json();})
+          .then(function(d){
+            var out = document.getElementById("loyara-refer-out");
+            if (d && d.ok){ out.innerHTML = '<div class="loyara-msg">Friends get '+money(d.friendDiscount)+' off. You earn '+n(d.reward)+' points per order.</div><div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out); btn.style.display="none"; }
+            else { btn.disabled=false; btn.textContent="Get my referral code"; out.innerHTML='<div class="loyara-msg">Referrals aren’t available right now.</div>'; }
+          })
+          .catch(function(){ btn.disabled=false; btn.textContent="Get my referral code"; });
+      }
+
+      function fillBirthday(){
+        var m=document.getElementById("loyara-bmonth"), day=document.getElementById("loyara-bday");
+        var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        m.innerHTML = mn.map(function(x,i){return '<option value="'+(i+1)+'">'+x+'</option>';}).join("");
+        var ds=""; for(var i=1;i<=31;i++) ds+='<option value="'+i+'">'+i+'</option>'; day.innerHTML=ds;
+      }
+      function saveBirthday(){
+        var m=document.getElementById("loyara-bmonth").value, d=document.getElementById("loyara-bday").value;
+        var mm=("0"+m).slice(-2), dd=("0"+d).slice(-2);
+        var btn=document.getElementById("loyara-bsave"); btn.disabled=true;
+        fetch("/apps/loyalty/birthday",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({birthday:mm+"-"+dd})})
+          .then(function(r){return r.json();})
+          .then(function(d){ document.getElementById("loyara-b-out").innerHTML='<div class="loyara-msg">'+(d&&d.ok?"Saved — happy early birthday!":"Couldn’t save, try again.")+'</div>'; })
+          .catch(function(){ btn.disabled=false; });
+      }
+
+      function load(force){
+        if (loaded && !force) return;
+        fetch("/apps/loyalty/state",{headers:{"Accept":"application/json"}})
+          .then(function(r){return r.json();})
+          .then(function(d){ state=d; loaded=true; render(); })
+          .catch(function(){ content.innerHTML='<div class="loyara-sec"><div class="loyara-msg">Couldn’t load your points.</div></div>'; });
+      }
+
+      function setOpen(open){ panel.classList.toggle("open",open); launcher.setAttribute("aria-expanded",open?"true":"false"); if(open){ if(!loaded) load(); closeBtn.focus(); } }
+      launcher.addEventListener("click",function(){ setOpen(!panel.classList.contains("open")); });
+      closeBtn.addEventListener("click",function(){ setOpen(false); launcher.focus(); });
+      document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&panel.classList.contains("open")) setOpen(false); });
+      document.addEventListener("click",function(e){ if(panel.classList.contains("open")&&!panel.contains(e.target)&&!launcher.contains(e.target)) setOpen(false); });
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Loyara rewards",
+  "target": "body",
+  "settings": [
+    { "type": "checkbox", "id": "enable", "label": "Show the rewards widget", "default": true },
+    { "type": "text", "id": "label", "label": "Button label", "default": "Rewards" },
+    { "type": "select", "id": "side", "label": "Position", "options": [ { "value": "right", "label": "Bottom right" }, { "value": "left", "label": "Bottom left" } ], "default": "right" },
+    { "type": "range", "id": "offset", "label": "Distance from bottom", "min": 8, "max": 140, "step": 4, "unit": "px", "default": 24 },
+    { "type": "color", "id": "bg_color", "label": "Accent color", "default": "#1a1a1a" },
+    { "type": "color", "id": "text_color", "label": "Text on accent", "default": "#ffffff" }
+  ]
+}
+{% endschema %}

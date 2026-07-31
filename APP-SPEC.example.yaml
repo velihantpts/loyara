@@ -1,0 +1,53 @@
+# APP-SPEC — the keystone that will drive every phase of the factory (build,
+# listing, deploy, assets). Item 4 of AUTOMATION-PLAN.md. For now it is the
+# single human-authored source of truth for a new app; later a /factory runner
+# reads it. This example describes the real Packify (PPWR) app.
+
+app:
+  brand: Packify                              # __BRAND__
+  name: "Packify: PPWR & EPR Compliance"      # __APP_NAME__
+  handle: ppwr-ready                          # __APP_STORE_HANDLE__ (apps.shopify.com/<handle>)
+  domain: ppwr.velihantoptas.com              # __DOMAIN__
+  support_email: velihan.dev@gmail.com        # __SUPPORT_EMAIL__
+
+regulation:
+  short_name: "EU PPWR & EPR"                 # __REGULATION__
+  trigger: "EU Packaging & Packaging Waste Regulation (Reg. 2025/40)"
+  deadline: "12 August 2026"                  # __DEADLINE__
+  # The legal model is the ONE thing that must be right. Summarize who the duty
+  # falls on and what is binding on the deadline vs. later-phase/advisory.
+  legal_model: >
+    Back-office EPR duty. Binding 12 Aug 2026: national EPR registration per EU
+    country sold into; EU authorized representative for non-EU sellers; packaging
+    documentation. 2028 harmonised label / 2030 design rules are shown as
+    upcoming, never scored.
+  legal_review: required                      # adversarial multi-agent review before ship
+
+capability_preset: back-office                # back-office | storefront-widget
+scopes: "read_products"                       # __SCOPES__ (back-office: read_products; widget: read_themes)
+data_source_webhook: "products/update"        # products/update (back-office) | themes/update (widget)
+
+features:
+  free:
+    - Readiness scan + score (0-100) + checklist
+    - Declaration/record export
+  pro:
+    - Automatic monitoring + regression alerts
+    - Hash-chained, tamper-evident audit trail
+    - Monthly readiness certificate (email)
+
+pricing:
+  model: billing-api                          # code-defined plans (not managed pricing)
+  monthly_usd: 7                              # internal handle "Pro"        (IRREVERSIBLE)
+  annual_usd: 60                              # internal handle "Pro annual" (IRREVERSIBLE)
+  trial_days: 7
+
+listing:
+  keywords: ["EU PPWR", "EPR compliance", "packaging registration", "LUCID", "Citeo"]
+  category: "Legal / Compliance"
+
+deploy:
+  host: coolify
+  volume: /data                               # persistent SQLite (DATABASE_URL=file:/data/prod.sqlite)
+  cron: "monthly → GET /cron/monthly-report?key=$CRON_SECRET"
+  env: [SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_APP_URL, SCOPES, DATABASE_URL, RESEND_API_KEY, CRON_SECRET]

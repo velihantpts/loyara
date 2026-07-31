@@ -1,0 +1,207 @@
+import { useEffect } from "react";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import {
+  Page,
+  Text,
+  Card,
+  Button,
+  BlockStack,
+  InlineStack,
+  Badge,
+  Box,
+  InlineGrid,
+  List,
+} from "@shopify/polaris";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { authenticate, hasProPlan } from "../shopify.server";
+import prisma from "../db.server";
+import { ensureConfig, setPro, maybeRequestReview } from "../loyalty/shop.server";
+import { programStats } from "../loyalty/stats.server";
+import { parseRedeemTiers } from "../loyalty/config";
+import { requestReviewOnce } from "../lib/core/review";
+import { BRAND } from "../config";
+
+// The theme app extension's uid (extensions/loyara-widget/shopify.extension.toml)
+// + block file name — used for the "add widget" theme-editor deep link.
+const WIDGET_EXTENSION_UUID = "4b82198e-5b8c-4cd6-9596-a5ab04bcf133";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session, billing } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const [config, hasPro, stats] = await Promise.all([
+    ensureConfig(shop),
+    hasProPlan(billing),
+    programStats(shop),
+  ]);
+  // Only write when the mirror actually changed (avoid a write per page load).
+  if (config.isPro !== hasPro) await setPro(shop, hasPro);
+
+  // Lazily cache the shop currency (for widget labels) and, for Pro, the contact
+  // email (for the monthly summary) — one GraphQL call, only when missing.
+  if (!config.currency || (hasPro && !config.email)) {
+    try {
+      const r = await admin.graphql(`#graphql
+        query { shop { currencyCode email } }`);
+      const j = (await r.json()) as {
+        data?: { shop?: { currencyCode?: string; email?: string } };
+      };
+      const currency = j?.data?.shop?.currencyCode ?? config.currency;
+      const email = hasPro ? (j?.data?.shop?.email ?? config.email) : config.email;
+      await prisma.shopConfig.update({
+        where: { shop },
+        data: { currency, email },
+      });
+    } catch {
+      // best-effort
+    }
+  }
+
+  const rewards = parseRedeemTiers(config.redeemTiers);
+
+  // Peak-value moment → once-only review prompt (first time we cross 5 members
+  // AND at least one reward has been redeemed).
+  const peak = stats.members >= 5 && stats.pointsRedeemed > 0;
+  const askReview = await maybeRequestReview(shop, peak);
+
+  return {
+    shop,
+    hasPro,
+    stats,
+    rewardCount: rewards.length,
+    programActive: config.programActive,
+    pointsPerDollar: config.pointsPerDollar,
+    askReview,
+  };
+};
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+      <BlockStack gap="100">
+        <Text as="span" variant="bodySm" tone="subdued">
+          {label}
+        </Text>
+        <Text as="span" variant="headingLg">
+          {value}
+        </Text>
+      </BlockStack>
+    </Box>
+  );
+}
+
+export default function Index() {
+  const data = useLoaderData<typeof loader>();
+  const shopify = useAppBridge();
+
+  useEffect(() => {
+    if (data.askReview) void requestReviewOnce(shopify);
+  }, [data.askReview, shopify]);
+
+  const nf = new Intl.NumberFormat("en-US");
+
+  return (
+    <Page>
+      <TitleBar title={BRAND} />
+      <BlockStack gap="500">
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingLg">
+                Your loyalty program
+              </Text>
+              <Badge tone={data.programActive ? "success" : "critical"}>
+                {data.programActive ? "Active" : "Paused"}
+              </Badge>
+            </InlineStack>
+            <Text as="p" variant="bodyMd" tone="subdued">
+              Members earn {data.pointsPerDollar} point
+              {data.pointsPerDollar === 1 ? "" : "s"} per unit spent, redeemable
+              for {data.rewardCount} reward{data.rewardCount === 1 ? "" : "s"}.
+            </Text>
+          </BlockStack>
+        </Card>
+
+        <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="300">
+          <Stat label="Members" value={nf.format(data.stats.members)} />
+          <Stat
+            label="Points issued"
+            value={nf.format(data.stats.pointsIssued)}
+          />
+          <Stat
+            label="Points redeemed"
+            value={nf.format(data.stats.pointsRedeemed)}
+          />
+          <Stat
+            label="Outstanding (liability)"
+            value={nf.format(data.stats.outstanding)}
+          />
+        </InlineGrid>
+
+        {/* Getting started */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h3" variant="headingMd">
+              Get set up
+            </Text>
+            <List type="number">
+              <List.Item>
+                Set your earn rate and rewards in{" "}
+                <Button variant="plain" url="/app/settings">
+                  Settings
+                </Button>
+              </List.Item>
+              <List.Item>
+                Add the Loyara widget to your theme so customers see and redeem
+                their points on your storefront —{" "}
+                <Button
+                  variant="plain"
+                  url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=${WIDGET_EXTENSION_UUID}/loyara`}
+                  target="_top"
+                >
+                  open the theme editor
+                </Button>
+                .
+              </List.Item>
+              <List.Item>
+                Switching from Smile, Rivo or BON? Bring every point balance with
+                you in{" "}
+                <Button variant="plain" url="/app/migrate">
+                  Import points
+                </Button>{" "}
+                — nobody loses a point.
+              </List.Item>
+            </List>
+          </BlockStack>
+        </Card>
+
+        {/* Pro */}
+        <Card>
+          <InlineStack align="space-between" blockAlign="center" wrap={false}>
+            <BlockStack gap="100">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h3" variant="headingSm">
+                  Loyara Pro
+                </Text>
+                <Badge tone={data.hasPro ? "success" : "new"}>
+                  {data.hasPro ? "Active" : "Free plan"}
+                </Badge>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {data.hasPro
+                  ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal — one flat price, no overage fees."
+                  : "Free covers up to 200 orders/mo. Pro is $19/mo flat — unlimited orders, VIP tiers, referrals, CSV migration, no overage fees ever. 14-day free trial."}
+              </Text>
+            </BlockStack>
+            {!data.hasPro && (
+              <Button url="/app/upgrade" variant="primary">
+                Upgrade
+              </Button>
+            )}
+          </InlineStack>
+        </Card>
+      </BlockStack>
+    </Page>
+  );
+}

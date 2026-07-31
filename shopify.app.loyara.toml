@@ -1,0 +1,82 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# Linked config for "Loyara: Loyalty & Rewards". client_id written by `shopify app
+# config link`; the rest is pushed to the Partner app by `shopify app deploy`.
+
+client_id = "232368ab8e19119fde562496b47498a6"
+name = "Loyara: Loyalty & Rewards"
+application_url = "https://loyara.velihantoptas.com"
+embedded = true
+
+[access_scopes]
+# Loyalty needs order + customer read (accrual/attribution) and discount write
+# (mint redemption codes). The widget reads balances via the signed App Proxy, so
+# no customer-write/metafield scope is required.
+scopes = "read_orders,read_customers,write_discounts"
+
+[webhooks]
+# Match the runtime ApiVersion.July26 in app/shopify.server.ts — a version skew
+# between the toml subscriptions and the runtime is what caused Aclara's webhook
+# failures.
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  # Accrue on PAID (not created) so unpaid/COD/cancelled orders don't hand out points.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/paid"
+  topics = [ "orders/paid" ]
+
+  # Proportional clawback on refund / cancel.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/refunds/create"
+  topics = [ "refunds/create" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/cancelled"
+  topics = [ "orders/cancelled" ]
+
+  # Signup bonus.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/create"
+  topics = [ "customers/create" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app_subscriptions/update"
+  topics = [ "app_subscriptions/update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
+
+# App Proxy — the storefront widget calls /apps/loyalty/* (same-origin, signed by
+# Shopify, passes logged_in_customer_id). Forwarded to <url>/<subpath-remainder>,
+# so /apps/loyalty/state → /proxy/state and /apps/loyalty/redeem → /proxy/redeem.
+[app_proxy]
+url = "https://loyara.velihantoptas.com/proxy"
+prefix = "apps"
+subpath = "loyalty"
+
+[auth]
+redirect_urls = [
+  "https://loyara.velihantoptas.com/auth/callback",
+  "https://loyara.velihantoptas.com/auth/shopify/callback",
+  "https://loyara.velihantoptas.com/api/auth/callback",
+]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

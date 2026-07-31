@@ -1,0 +1,14 @@
+{
+  "//": "Loyara (app #3) — first NON-compliance factory app. The regulation swap point is replaced by a loyalty points engine. See _factory/specs/loyara-APP-SPEC.yaml.",
+
+  "__BRAND__": "Loyara",
+  "__APP_NAME__": "Loyara: Loyalty & Rewards",
+  "__DOMAIN__": "loyara.velihantoptas.com",
+  "__APP_STORE_HANDLE__": "loyara",
+  "__SUPPORT_EMAIL__": "velihan.dev@gmail.com",
+  "__SCOPES__": "read_orders,read_customers,write_discounts",
+  "__SHOPIFY_CLIENT_ID__": "set-by-`shopify app config link`",
+
+  "capabilityPreset": "loyalty",
+  "presetNote": "loyalty = points ledger + theme app extension widget + App Proxy redeem + billing. Not back-office/compliance. Pricing: Free (200 orders/mo), Pro $19/mo, Pro annual $190/yr (handles SIGNED, irreversible)."
+}

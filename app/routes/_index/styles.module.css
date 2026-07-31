@@ -1,0 +1,155 @@
+.index {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  width: 100%;
+  padding: 2.5rem 1.25rem 4rem;
+  box-sizing: border-box;
+  color: #1a2b22;
+  background: #fbfaf7;
+}
+
+.content {
+  display: grid;
+  gap: 2.5rem;
+  max-width: 46rem;
+  width: 100%;
+  text-align: left;
+}
+
+.hero {
+  display: grid;
+  gap: 1rem;
+}
+
+.heading {
+  padding: 0;
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  color: #143024;
+}
+
+.text {
+  padding: 0;
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.ctaRow {
+  padding-top: 0.5rem;
+}
+
+.cta {
+  display: inline-block;
+  background: #1e5a3f;
+  color: #fbfaf7;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.7rem 1.25rem;
+  border-radius: 0.5rem;
+}
+
+.cta:hover {
+  background: #17452f;
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f0efe9;
+  border-radius: 0.5rem;
+}
+
+.label {
+  display: grid;
+  gap: 0.2rem;
+  max-width: 22rem;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.input {
+  padding: 0.45rem;
+  border: 1px solid #c7c3b8;
+  border-radius: 0.35rem;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: #143024;
+  color: #fbfaf7;
+  cursor: pointer;
+}
+
+.section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #143024;
+}
+
+.bullets,
+.steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.faq {
+  margin: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.faqItem {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.faqQ {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #143024;
+}
+
+.faqA {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #5c6b62;
+  border-top: 1px solid #e2e0d7;
+  padding-top: 1.25rem;
+}
+
+@media only screen and (max-width: 40rem) {
+  .heading {
+    font-size: 1.6rem;
+  }
+
+  .form {
+    display: grid;
+  }
+
+  .label {
+    max-width: none;
+  }
+}

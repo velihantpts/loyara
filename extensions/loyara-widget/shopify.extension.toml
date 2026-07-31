@@ -1,0 +1,5 @@
+# Loyara storefront widget — theme app extension (app embed block).
+# The merchant enables it in Theme editor → App embeds → Loyara.
+name = "Loyara Widget"
+type = "theme"
+uid = "4b82198e-5b8c-4cd6-9596-a5ab04bcf133"

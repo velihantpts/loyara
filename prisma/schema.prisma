@@ -1,0 +1,167 @@
+// Loyara — loyalty/points Prisma schema.
+//
+// Zones:
+//   1. Session             — Shopify session storage (DO NOT edit).
+//   2. ShopConfig          — per-shop program settings + Pro mirror + onboarding.
+//   3. LOYALTY DOMAIN       — Customer (points balance), PointsLedger (append-only,
+//                             idempotent), Redemption, Referral.
+//
+// SQLite does NOT support Prisma enums, so status/reason/type fields are String
+// with the allowed values documented inline.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // In production the SQLite file MUST sit on a persistent volume (Coolify /data),
+  // otherwise a redeploy wipes sessions + the points ledger. Set DATABASE_URL to
+  // e.g. "file:/data/prod.sqlite". Locally .env sets "file:dev.sqlite".
+  url      = env("DATABASE_URL")
+}
+
+// ── 1. SESSION (managed by @shopify/shopify-app-session-storage-prisma) ──────
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// ── 2. SHOP CONFIG — per-shop program settings ───────────────────────────────
+model ShopConfig {
+  id          String    @id @default(cuid())
+  shop        String    @unique
+  onboardedAt DateTime?
+
+  // Program settings (all editable in the admin; sane defaults so the program
+  // works the moment it's installed).
+  programActive    Boolean @default(true)
+  pointsPerDollar  Int     @default(1) // points earned per 1 unit of shop currency (order subtotal)
+  signupBonus      Int     @default(0) // points granted once on customers/create
+  birthdayBonus    Int     @default(0) // points granted on birthday (0 = off)
+  pointsExpiryDays Int     @default(0) // 0 = never expire
+  redeemTiers      String  @default("[]") // JSON: [{ points, value, type: "fixed"|"percent" }]
+  vipTiers         String  @default("[]") // JSON: [{ name, threshold, multiplier }] keyed on lifetimeEarned
+  referralReward         Int     @default(0) // points to BOTH referrer + referee on completed referral (0 = referrals off)
+  referralFriendDiscount Int     @default(0) // fixed $ off the referred friend gets via the referral code
+  emailNotifications     Boolean @default(false) // email customers their redemption codes
+  brandingRemoved        Boolean @default(false) // Pro only
+
+  // Pro subscription mirror, kept fresh from billing so storefront/webhook paths
+  // gate without a billing API round-trip.
+  isPro Boolean @default(false)
+  email String? // shop contact email, for the monthly summary
+  currency String? // shop currency code, cached for widget labels
+
+  // Retention: once-only App Bridge review request at the peak-value moment.
+  reviewRequestedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── 3. LOYALTY DOMAIN ────────────────────────────────────────────────────────
+
+// A loyalty member. `balance` is the DENORMALIZED cache = SUM(ledger.delta); it
+// is written in the same DB transaction as every ledger insert. It may go
+// NEGATIVE (earn→redeem→refund) — the true value is kept for honest audit, but
+// the storefront/admin DISPLAY floors at 0 (see app/loyalty/balance.server.ts).
+model Customer {
+  id             String   @id @default(cuid())
+  shop           String
+  shopifyGid     String // gid://shopify/Customer/123
+  email          String?
+  balance        Int      @default(0)
+  lifetimeEarned Int      @default(0)
+  vipTier        String? // computed tier name from vipTiers config
+  birthday       String? // "MM-DD" if known
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entries     PointsLedger[]
+  redemptions Redemption[]
+
+  @@unique([shop, shopifyGid])
+  @@index([shop, balance])
+}
+
+// Append-only points ledger. The `@@unique([shop, sourceType, sourceId])`
+// constraint is the linchpin of correctness: an insert-or-ignore on that key
+// makes every accrual/clawback idempotent no matter how many times Shopify
+// retries a webhook. NEVER update or delete a row here — corrections are new
+// signed rows.
+model PointsLedger {
+  id         String   @id @default(cuid())
+  shop       String
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  delta  Int // signed: +earn, -redeem, -clawback
+  reason String // EARN_ORDER | EARN_SIGNUP | EARN_BIRTHDAY | EARN_REFERRAL | EARN_MANUAL | REDEEM | CLAWBACK_REFUND | CLAWBACK_CANCEL | ADJUST_MANUAL | EXPIRE
+
+  // Idempotency + provenance.
+  sourceType     String // order | refund | cancel | signup | birthday | referral | redemption | manual | expire
+  sourceId       String // order GID, refund GID, redemption id, etc.
+  webhookEventId String? // X-Shopify-Event-Id (secondary guard)
+  orderGid       String? // the order this entry relates to (for clawback capping)
+  meta           String? // JSON: { subtotal, rate, refundedAmount, ... }
+
+  createdAt DateTime @default(now())
+
+  @@unique([shop, sourceType, sourceId])
+  @@index([shop, customerId, createdAt])
+  @@index([shop, orderGid])
+  // Covering index for the dashboard SUM(delta) aggregates filtered by reason.
+  @@index([shop, reason, delta])
+}
+
+// A points-for-discount redemption. Idempotent on the client-supplied key so a
+// retried redeem request returns the same code, never double-charges.
+model Redemption {
+  id         String   @id @default(cuid())
+  shop       String
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  cost            Int
+  discountCode    String?
+  discountNodeGid String?
+  status          String  @default("PENDING") // PENDING | ISSUED | FAILED
+  idempotencyKey  String
+
+  createdAt DateTime @default(now())
+
+  @@unique([shop, idempotencyKey])
+  @@index([shop, customerId, createdAt])
+}
+
+// Referral: a referrer's unique code; reward granted to both sides when a
+// referee completes a qualifying first order.
+model Referral {
+  id          String    @id @default(cuid())
+  shop        String
+  code        String
+  referrerGid String // customer who owns the code
+  refereeGid  String? // customer who used it
+  status      String    @default("PENDING") // PENDING | COMPLETED
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([shop, code])
+  @@index([shop, referrerGid])
+}

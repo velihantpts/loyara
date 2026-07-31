@@ -1,0 +1,16 @@
+{
+  "//": "Copy to factory.config.json and fill. Every value maps to a __TOKEN__ in the template. After filling, find/replace each __TOKEN__ (they live in app/config.ts, shopify.app.toml, .env.example). Example values are the real Packify (PPWR) app for reference.",
+
+  "__BRAND__": "Packify",
+  "__APP_NAME__": "Packify: PPWR & EPR Compliance",
+  "__REGULATION__": "EU PPWR & EPR",
+  "__DEADLINE__": "12 August 2026",
+  "__DOMAIN__": "ppwr.velihantoptas.com",
+  "__APP_STORE_HANDLE__": "ppwr-ready",
+  "__SUPPORT_EMAIL__": "velihan.dev@gmail.com",
+  "__SCOPES__": "read_products",
+  "__SHOPIFY_CLIENT_ID__": "set-by-`shopify app config link`",
+
+  "capabilityPreset": "back-office",
+  "presetNote": "back-office = data export, no theme extension (read_products). storefront-widget = theme app extension + verify-live (read_themes). See README."
+}

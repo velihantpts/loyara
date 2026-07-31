@@ -1,0 +1,31 @@
+node_modules
+.DS_Store
+
+/.cache
+/build
+/app/build
+/public/build/
+/public/_dev
+/app/public/build
+/prisma/dev.sqlite
+/prisma/dev.sqlite-journal
+database.sqlite
+
+.env
+.env.*
+!.env.example
+
+# package-lock.json is committed on purpose: the production Dockerfile runs
+# `npm ci`, which requires the lockfile to be present in the repo.
+yarn.lock
+pnpm-lock.yaml
+
+/extensions/*/dist
+
+# Ignore shopify files created during app dev
+.shopify/*
+.shopify.lock
+
+# SQLite WAL/SHM sidecars
+/prisma/dev.sqlite-wal
+/prisma/dev.sqlite-shm
