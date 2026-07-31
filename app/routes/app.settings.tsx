@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
@@ -11,13 +11,12 @@ import {
   Select,
   Checkbox,
   Button,
-  ButtonGroup,
   Text,
   Box,
   Banner,
   Divider,
 } from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge, SaveBar } from "@shopify/app-bridge-react";
 import { authenticate, hasProPlan, checkProPlan } from "../shopify.server";
 import { ensureConfig } from "../loyalty/shop.server";
 import prisma from "../db.server";
@@ -173,6 +172,52 @@ export default function Settings() {
   );
   const [vipTiers, setVip] = useState<VipTier[]>(settings.vipTiers);
 
+  // Contextual save bar: a snapshot of every editable value drives the dirty
+  // check + Discard. `baseline` is the last-saved (or loaded) state; the bar
+  // shows whenever the form diverges from it.
+  const currentValues = {
+    programActive,
+    pointsPerDollar,
+    signupBonus,
+    birthdayBonus,
+    expiry,
+    referralReward,
+    friendDiscount,
+    emailNotifications,
+    klaviyoApiKey,
+    redemptionMode,
+    brandingRemoved,
+    redeemTiers,
+    vipTiers,
+  };
+  type Values = typeof currentValues;
+  const [baseline, setBaseline] = useState<Values>(currentValues);
+  const dirty = JSON.stringify(currentValues) !== JSON.stringify(baseline);
+  // Keep the latest snapshot reachable from the save-success effect without
+  // re-arming it on every keystroke.
+  const cvRef = useRef<Values>(currentValues);
+  cvRef.current = currentValues;
+
+  const applyValues = useCallback((v: Values) => {
+    setProgramActive(v.programActive);
+    setPPD(v.pointsPerDollar);
+    setSignup(v.signupBonus);
+    setBirthday(v.birthdayBonus);
+    setExpiry(v.expiry);
+    setReferral(v.referralReward);
+    setFriendDiscount(v.friendDiscount);
+    setEmailNotif(v.emailNotifications);
+    setKlaviyo(v.klaviyoApiKey);
+    setRedemptionMode(v.redemptionMode);
+    setBranding(v.brandingRemoved);
+    setRedeem(v.redeemTiers);
+    setVip(v.vipTiers);
+  }, []);
+  const discard = useCallback(
+    () => applyValues(baseline),
+    [applyValues, baseline],
+  );
+
   const save = useCallback(() => {
     const payload: Payload = {
       programActive,
@@ -211,7 +256,11 @@ export default function Settings() {
   ]);
 
   useEffect(() => {
-    if (fetcher.data?.ok) shopify.toast.show("Settings saved");
+    if (fetcher.data?.ok) {
+      shopify.toast.show("Settings saved");
+      // The saved values become the new baseline → the save bar auto-hides.
+      setBaseline(cvRef.current);
+    }
   }, [fetcher.data, shopify]);
 
   const updateRedeem = (i: number, patch: Partial<RedeemTier>) =>
@@ -222,6 +271,19 @@ export default function Settings() {
   return (
     <Page>
       <TitleBar title="Settings" />
+      <SaveBar id="loyara-settings-save-bar" open={dirty || saving}>
+        {/* App Bridge styles these buttons; variant/loading are custom element
+            attributes App Bridge reads, so they're spread past button's typing. */}
+        <button
+          {...({ variant: "primary", ...(saving ? { loading: "" } : {}) } as any)}
+          onClick={save}
+        >
+          Save
+        </button>
+        <button onClick={discard} disabled={saving}>
+          Discard
+        </button>
+      </SaveBar>
       <BlockStack gap="500">
         {!hasPro && (
           <Banner tone="info">
@@ -476,13 +538,6 @@ export default function Settings() {
           </BlockStack>
         </Card>
 
-        <InlineStack align="end">
-          <ButtonGroup>
-            <Button variant="primary" loading={saving} onClick={save}>
-              Save settings
-            </Button>
-          </ButtonGroup>
-        </InlineStack>
       </BlockStack>
     </Page>
   );
