@@ -11,7 +11,7 @@ embedded = true
 # Loyalty needs order + customer read (accrual/attribution) and discount write
 # (mint redemption codes). The widget reads balances via the signed App Proxy, so
 # no customer-write/metafield scope is required.
-scopes = "read_orders,read_customers,write_discounts"
+scopes = "read_orders,read_customers,write_discounts,write_store_credit_account_transactions"
 
 [webhooks]
 # Match the runtime ApiVersion.July26 in app/shopify.server.ts — a version skew

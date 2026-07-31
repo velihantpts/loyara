@@ -9,6 +9,15 @@ export interface RedeemTier {
   type: "fixed" | "percent";
 }
 
+/** How a redemption is fulfilled. "discount" mints a one-time code (default, works
+ *  on every plan); "store_credit" (Pro) credits the customer's Shopify store-credit
+ *  account — only fixed-amount tiers are creditable (a % has no monetary amount). */
+export type RedemptionMode = "discount" | "store_credit";
+
+export function parseRedemptionMode(v: string | null | undefined): RedemptionMode {
+  return v === "store_credit" ? "store_credit" : "discount";
+}
+
 /** A VIP tier unlocked at `threshold` lifetime points; `multiplier` boosts earn. */
 export interface VipTier {
   name: string;

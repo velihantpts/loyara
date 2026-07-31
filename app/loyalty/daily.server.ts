@@ -4,31 +4,51 @@
 import prisma from "../db.server";
 import { applyEntry } from "./points.server";
 import { earnBirthday } from "./earn.server";
+import { klaviyoEvent } from "./klaviyo.server";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Warn members this many days before their points expire (Klaviyo event). Only
+// applies when the expiry window is longer than the warning lead time.
+const EXPIRY_WARN_DAYS = 7;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export interface DailyResult {
   expiredMembers: number;
   birthdayGrants: number;
+  expiringSoonWarned: number;
 }
 
 export async function runDaily(now: Date): Promise<DailyResult> {
   let expiredMembers = 0;
   let birthdayGrants = 0;
+  let expiringSoonWarned = 0;
 
   // ── Expiry: points expire after N days of no EARN activity. Expire the whole
-  //    balance in one EXPIRE entry (reason EXPIRE doesn't touch lifetime/VIP). ──
+  //    balance in one EXPIRE entry (reason EXPIRE doesn't touch lifetime/VIP).
+  //    Members inside the warning window get a one-time "expiring soon" Klaviyo
+  //    event (once per earn cycle — a new EARN resets the warning). ──
   const expiryShops = await prisma.shopConfig.findMany({
     where: { pointsExpiryDays: { gt: 0 }, programActive: true, isPro: true },
-    select: { shop: true, pointsExpiryDays: true },
+    select: { shop: true, pointsExpiryDays: true, klaviyoApiKey: true },
   });
   const dayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   for (const cfg of expiryShops) {
     const cutoff = new Date(now.getTime() - cfg.pointsExpiryDays * DAY_MS);
+    // Warn window opens EXPIRY_WARN_DAYS before the cutoff (skip if the whole
+    // window is shorter than the lead time — nothing sensible to warn about).
+    const warnCutoff =
+      cfg.pointsExpiryDays > EXPIRY_WARN_DAYS
+        ? new Date(now.getTime() - (cfg.pointsExpiryDays - EXPIRY_WARN_DAYS) * DAY_MS)
+        : null;
     const customers = await prisma.customer.findMany({
       where: { shop: cfg.shop, balance: { gt: 0 } },
-      select: { id: true, shopifyGid: true, balance: true },
+      select: {
+        id: true,
+        shopifyGid: true,
+        email: true,
+        balance: true,
+        expiryWarnedFor: true,
+      },
     });
     for (const c of customers) {
       const lastEarn = await prisma.pointsLedger.findFirst({
@@ -36,7 +56,8 @@ export async function runDaily(now: Date): Promise<DailyResult> {
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       });
-      if (lastEarn && lastEarn.createdAt < cutoff) {
+      if (!lastEarn) continue;
+      if (lastEarn.createdAt < cutoff) {
         const res = await applyEntry({
           shop: cfg.shop,
           customerGid: c.shopifyGid,
@@ -47,6 +68,34 @@ export async function runDaily(now: Date): Promise<DailyResult> {
           meta: { expiredAfterDays: cfg.pointsExpiryDays },
         });
         if (res.applied) expiredMembers++;
+        continue;
+      }
+      // Expiring soon: inside the warning window, has an email + Klaviyo, and not
+      // already warned for THIS earn cycle (keyed on the last-earn timestamp).
+      const earnKey = lastEarn.createdAt.toISOString();
+      if (
+        warnCutoff &&
+        lastEarn.createdAt < warnCutoff &&
+        cfg.klaviyoApiKey &&
+        c.email &&
+        c.expiryWarnedFor !== earnKey
+      ) {
+        const daysLeft = Math.max(
+          0,
+          Math.ceil((lastEarn.createdAt.getTime() - cutoff.getTime()) / DAY_MS),
+        );
+        klaviyoEvent(
+          cfg.klaviyoApiKey,
+          "Loyalty Points Expiring Soon",
+          c.email,
+          { balance: c.balance, days_left: daysLeft },
+          { loyalty_points: c.balance },
+        );
+        await prisma.customer.update({
+          where: { id: c.id },
+          data: { expiryWarnedFor: earnKey },
+        });
+        expiringSoonWarned++;
       }
     }
   }
@@ -68,5 +117,5 @@ export async function runDaily(now: Date): Promise<DailyResult> {
     }
   }
 
-  return { expiredMembers, birthdayGrants };
+  return { expiredMembers, birthdayGrants, expiringSoonWarned };
 }

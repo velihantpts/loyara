@@ -56,6 +56,7 @@ model ShopConfig {
   birthdayBonus    Int     @default(0) // points granted on birthday (0 = off)
   pointsExpiryDays Int     @default(0) // 0 = never expire
   redeemTiers      String  @default("[]") // JSON: [{ points, value, type: "fixed"|"percent" }]
+  redemptionMode   String  @default("discount") // "discount" (mint a code) | "store_credit" (Pro; credit the customer's store-credit account)
   vipTiers         String  @default("[]") // JSON: [{ name, threshold, multiplier }] keyed on lifetimeEarned
   referralReward         Int     @default(0) // points to BOTH referrer + referee on completed referral (0 = referrals off)
   referralFriendDiscount Int     @default(0) // fixed $ off the referred friend gets via the referral code
@@ -91,6 +92,10 @@ model Customer {
   lifetimeEarned Int      @default(0)
   vipTier        String? // computed tier name from vipTiers config
   birthday       String? // "MM-DD" if known
+  // Idempotency for the "points expiring soon" warning: stores the createdAt (ISO)
+  // of the last-EARN entry we already warned about, so we warn ONCE per earn cycle.
+  // A new EARN advances lastEarn, so a later warning is legitimately eligible again.
+  expiryWarnedFor String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

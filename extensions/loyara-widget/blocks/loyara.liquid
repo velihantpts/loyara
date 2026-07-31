@@ -78,7 +78,11 @@
       function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];}); }
       function n(v){ return new Intl.NumberFormat().format(v); }
       function money(v){ try { return new Intl.NumberFormat(undefined,{style:"currency",currency:(state&&state.currency)||"USD"}).format(v);}catch(e){return v+" "+((state&&state.currency)||"");} }
-      function rewardLabel(t){ return t.type==="percent" ? (t.value+"% off") : (money(t.value)+" off"); }
+      function rewardLabel(t){
+        // Fixed tiers become store credit when the shop delivers rewards that way.
+        if (state && state.redemptionMode === "store_credit" && t.type !== "percent") return money(t.value)+" store credit";
+        return t.type==="percent" ? (t.value+"% off") : (money(t.value)+" off");
+      }
       function uuid(){ if(window.crypto&&crypto.getRandomValues){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(b){return("0"+b.toString(16)).slice(-2);}).join("");} return Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
 
       function waysToEarn(){
@@ -163,8 +167,12 @@
           .then(function(d){
             var out = document.getElementById("loyara-redeem-out");
             if (d && d.ok){
-              out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out);
-              // Update balance IN PLACE — never rebuild the panel here (that would wipe the code above).
+              if (d.mode === "store_credit" || d.credited != null){
+                out.innerHTML = '<div class="loyara-msg">'+money(d.credited)+' store credit added to your account 🎉<br><small style="color:#888">It applies automatically at checkout.</small></div>';
+              } else {
+                out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out);
+              }
+              // Update balance IN PLACE — never rebuild the panel here (that would wipe the output above).
               if (state) state.balance = Math.max(0, state.balance - (d.cost||0));
               var balEl = content.querySelector('.bal'); if (balEl) balEl.textContent = n(state.balance)+' pts';
               if (badge) badge.textContent = '· '+n(state.balance);

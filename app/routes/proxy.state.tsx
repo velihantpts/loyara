@@ -3,7 +3,12 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { displayBalance } from "../loyalty/balance.server";
-import { parseRedeemTiers, parseVipTiers, computeVipTier } from "../loyalty/config";
+import {
+  parseRedeemTiers,
+  parseVipTiers,
+  parseRedemptionMode,
+  computeVipTier,
+} from "../loyalty/config";
 
 // App Proxy: GET /apps/loyalty/state → /proxy/state
 // The storefront widget's authoritative read: balance, earn rules, VIP progress,
@@ -23,6 +28,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const branded = !((config?.brandingRemoved ?? false) && (config?.isPro ?? false));
   const active = config?.programActive ?? false;
   const currency = config?.currency ?? "USD";
+  // Store credit is Pro-only — a free/downgraded shop always delivers codes.
+  const redemptionMode =
+    (config?.isPro ?? false) ? parseRedemptionMode(config?.redemptionMode) : "discount";
   const referralEnabled =
     (config?.referralReward ?? 0) > 0 && (config?.referralFriendDiscount ?? 0) > 0;
 
@@ -41,6 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       active,
       branded,
       currency,
+      redemptionMode,
       earn,
       tiers: publicTiers,
       referralEnabled,
@@ -76,6 +85,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     active,
     branded,
     currency,
+    redemptionMode,
     earn,
     balance,
     tiers: publicTiers,

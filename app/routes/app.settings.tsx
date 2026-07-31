@@ -24,6 +24,7 @@ import prisma from "../db.server";
 import {
   parseRedeemTiers,
   parseVipTiers,
+  parseRedemptionMode,
   type RedeemTier,
   type VipTier,
 } from "../loyalty/config";
@@ -47,6 +48,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       emailNotifications: config.emailNotifications,
       klaviyoApiKey: config.klaviyoApiKey ?? "",
       brandingRemoved: config.brandingRemoved,
+      redemptionMode: parseRedemptionMode(config.redemptionMode),
       redeemTiers: parseRedeemTiers(config.redeemTiers),
       vipTiers: parseVipTiers(config.vipTiers),
     },
@@ -64,6 +66,7 @@ interface Payload {
   emailNotifications: boolean;
   klaviyoApiKey: string;
   brandingRemoved: boolean;
+  redemptionMode: string;
   redeemTiers: RedeemTier[];
   vipTiers: VipTier[];
 }
@@ -129,6 +132,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       emailNotifications: hasPro ? Boolean(p.emailNotifications) : false,
       klaviyoApiKey: hasPro ? (String(p.klaviyoApiKey ?? "").trim() || null) : null,
       brandingRemoved: hasPro ? Boolean(p.brandingRemoved) : false,
+      // Store-credit fulfilment is Pro-only; free/downgraded shops stay on codes.
+      redemptionMode: hasPro ? parseRedemptionMode(p.redemptionMode) : "discount",
       redeemTiers: JSON.stringify(redeemTiers),
       vipTiers: JSON.stringify(hasPro ? vipTiers : []),
       onboardedAt: new Date(),
@@ -157,6 +162,9 @@ export default function Settings() {
     settings.emailNotifications,
   );
   const [klaviyoApiKey, setKlaviyo] = useState(settings.klaviyoApiKey);
+  const [redemptionMode, setRedemptionMode] = useState<string>(
+    settings.redemptionMode,
+  );
   const [brandingRemoved, setBranding] = useState(settings.brandingRemoved);
   const [redeemTiers, setRedeem] = useState<RedeemTier[]>(
     settings.redeemTiers.length
@@ -177,6 +185,7 @@ export default function Settings() {
       emailNotifications,
       klaviyoApiKey,
       brandingRemoved,
+      redemptionMode,
       redeemTiers,
       vipTiers,
     };
@@ -195,6 +204,7 @@ export default function Settings() {
     emailNotifications,
     klaviyoApiKey,
     brandingRemoved,
+    redemptionMode,
     redeemTiers,
     vipTiers,
     fetcher,
@@ -292,6 +302,21 @@ export default function Settings() {
                 Add reward
               </Button>
             </InlineStack>
+            <Select
+              label="Reward delivery"
+              options={[
+                { label: "Discount code (works on any plan)", value: "discount" },
+                { label: "Store credit (Pro)", value: "store_credit" },
+              ]}
+              value={redemptionMode}
+              onChange={setRedemptionMode}
+              disabled={!hasPro}
+              helpText={
+                hasPro
+                  ? "Store credit applies value straight to the customer's account at checkout — no code to enter. Only fixed-amount tiers can be issued as store credit (percentage tiers still mint a code)."
+                  : "Pro — free plans deliver rewards as discount codes."
+              }
+            />
             {redeemTiers.map((t, i) => (
               <Box key={i}>
                 <InlineGrid columns={{ xs: 1, sm: 4 }} gap="300">
