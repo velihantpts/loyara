@@ -6,6 +6,7 @@
 import crypto from "node:crypto";
 import prisma from "../db.server";
 import { applyEntry } from "./points.server";
+import { klaviyoEvent } from "./klaviyo.server";
 
 type GraphqlAdmin = {
   graphql: (
@@ -69,7 +70,7 @@ export async function attributeReferral(
     if (ref.referrerGid === buyerGid) continue; // no self-referral
 
     // Referrer earns once per referred friend.
-    await applyEntry({
+    const refRes = await applyEntry({
       shop,
       customerGid: ref.referrerGid,
       delta: cfg.referralReward,
@@ -78,7 +79,7 @@ export async function attributeReferral(
       sourceId: `referral:${code}:${buyerGid}`,
     });
     // Friend earns once, ever.
-    await applyEntry({
+    const friendRes = await applyEntry({
       shop,
       customerGid: buyerGid,
       customerEmail: payload.customer?.email ?? null,
@@ -87,6 +88,28 @@ export async function attributeReferral(
       sourceType: "referral",
       sourceId: `referral-bonus:${buyerGid}`,
     });
+
+    if (cfg.isPro && cfg.klaviyoApiKey) {
+      klaviyoEvent(
+        cfg.klaviyoApiKey,
+        "Loyalty Referral Completed",
+        payload.customer?.email ?? null,
+        { points: cfg.referralReward, role: "referred", balance: friendRes.balance },
+        { loyalty_points: friendRes.balance },
+      );
+      const referrer = await prisma.customer.findUnique({
+        where: { shop_shopifyGid: { shop, shopifyGid: ref.referrerGid } },
+        select: { email: true },
+      });
+      if (referrer?.email)
+        klaviyoEvent(
+          cfg.klaviyoApiKey,
+          "Loyalty Referral Completed",
+          referrer.email,
+          { points: cfg.referralReward, role: "referrer", balance: refRes.balance },
+          { loyalty_points: refRes.balance },
+        );
+    }
     break; // one referral attributed per order
   }
 }

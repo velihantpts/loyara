@@ -4,7 +4,7 @@
 
 import prisma from "../db.server";
 import { applyEntry } from "./points.server";
-import { parseVipTiers, vipMultiplier } from "./config";
+import { parseVipTiers, vipMultiplier, computeVipTier } from "./config";
 import { klaviyoEvent } from "./klaviyo.server";
 
 // Minimal shape of the orders/paid REST webhook payload we rely on.
@@ -74,13 +74,27 @@ export async function earnFromOrder(
   });
 
   if (res.applied && cfg.isPro && cfg.klaviyoApiKey) {
+    const email = payload.customer?.email ?? null;
     klaviyoEvent(
       cfg.klaviyoApiKey,
       "Loyalty Points Earned",
-      payload.customer?.email ?? null,
+      email,
       { points, source: "order", balance: res.balance },
       { loyalty_points: res.balance },
     );
+    // VIP tier change → its own event so flows can react.
+    const tiers = parseVipTiers(cfg.vipTiers);
+    const oldTier = computeVipTier(existing?.lifetimeEarned ?? 0, tiers)?.name ?? null;
+    const newTier = computeVipTier(res.lifetimeEarned ?? 0, tiers)?.name ?? null;
+    if (newTier && newTier !== oldTier) {
+      klaviyoEvent(
+        cfg.klaviyoApiKey,
+        "Loyalty VIP Tier Changed",
+        email,
+        { tier: newTier, previous_tier: oldTier },
+        { loyalty_vip_tier: newTier, loyalty_points: res.balance },
+      );
+    }
   }
 }
 
