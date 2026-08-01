@@ -40,7 +40,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How much does it cost?",
-    a: "A free plan covers up to 200 orders/month. Pro is $19/month flat (or $190/year) for unlimited orders and every feature, with a 14-day free trial.",
+    a: "There's a free plan with points, redemptions and the storefront widget. Pro is $19/month flat (or $190/year) for VIP tiers, referrals, birthday bonuses, Klaviyo and CSV migration — unlimited orders, no overage fees, with a 14-day free trial.",
   },
 ];
 
@@ -151,8 +151,8 @@ export default function App() {
             Customers earn points on every purchase and redeem them for discounts
             from a storefront widget. Set your earn rate and rewards in minutes,
             add the widget to your theme, and optionally import your existing
-            program. Free for up to 200 orders/month; $19/month flat for
-            unlimited.
+            program. Free to start; $19/month flat for VIP tiers, referrals and
+            every feature — unlimited orders, no overage fees.
           </p>
           <div className={styles.ctaRow}>
             <a className={styles.cta} href={APP_STORE_URL}>

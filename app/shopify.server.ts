@@ -8,9 +8,10 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
-// Pro billing. Free tier = points earn/redeem + basic widget, up to 200 orders/mo.
-// Pro (monthly or annual) = UNLIMITED orders + every feature (VIP tiers, referrals,
-// CSV migration, branding removal, expiry/birthday) — the anti-gating flat-price wedge.
+// Pro billing. Free tier = points earn/redeem + storefront widget (feature-gated,
+// no order-count limit enforced). Pro (monthly or annual) = every feature (VIP tiers,
+// referrals, CSV migration, branding removal, expiry/birthday, Klaviyo), billed at a
+// flat price regardless of order volume — the anti-gating flat-price wedge.
 // The plan NAMES are the listing "internal plan handle" — SIGNED 2026-07-30, IRREVERSIBLE.
 export const PRO_MONTHLY = "Pro";
 export const PRO_ANNUAL = "Pro annual";

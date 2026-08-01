@@ -227,7 +227,7 @@ export default function Index() {
               <Text as="p" variant="bodySm" tone="subdued">
                 {data.hasPro
                   ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal — one flat price, no overage fees."
-                  : "Free covers up to 200 orders/mo. Pro is $19/mo flat — unlimited orders, VIP tiers, referrals, CSV migration, no overage fees ever. 14-day free trial."}
+                  : "Free includes points, redemptions and the storefront widget. Pro is $19/mo flat — unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
               </Text>
             </BlockStack>
             {!data.hasPro && (
