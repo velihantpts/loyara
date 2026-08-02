@@ -12,9 +12,12 @@ import prisma from "./db.server";
 // no order-count limit enforced). Pro (monthly or annual) = every feature (VIP tiers,
 // referrals, CSV migration, branding removal, expiry/birthday, Klaviyo), billed at a
 // flat price regardless of order volume — the anti-gating flat-price wedge.
-// The plan NAMES are the listing "internal plan handle" — SIGNED 2026-07-30, IRREVERSIBLE.
-export const PRO_MONTHLY = "Pro";
-export const PRO_ANNUAL = "Pro annual";
+// The plan NAMES must equal the App Store "Internal plan handle", which the
+// pricing form forces to a lowercase slug — so these are lowercase to match the
+// created public plans exactly (case-sensitive billing match). IRREVERSIBLE once
+// the public plans are created.
+export const PRO_MONTHLY = "pro";
+export const PRO_ANNUAL = "pro-annual";
 export const PRO_PLANS: (typeof PRO_MONTHLY | typeof PRO_ANNUAL)[] = [
   PRO_MONTHLY,
   PRO_ANNUAL,
