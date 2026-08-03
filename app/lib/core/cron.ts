@@ -20,7 +20,7 @@ function summaryHtml(shop: string, s: Awaited<ReturnType<typeof programStats>>):
   const row = (label: string, value: number) =>
     `<tr><td style="padding:6px;border-bottom:1px solid #eee">${label}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right"><b>${nf.format(value)}</b></td></tr>`;
   return `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
-    <h2 style="margin-bottom:4px">${BRAND} — your loyalty program this month</h2>
+    <h2 style="margin-bottom:4px">${BRAND}: your loyalty program this month</h2>
     <p style="color:#555;margin-top:0">Store: <b>${shop}</b></p>
     <table style="width:100%;border-collapse:collapse;margin-top:12px">
       ${row("Members", s.members)}
@@ -31,7 +31,7 @@ function summaryHtml(shop: string, s: Awaited<ReturnType<typeof programStats>>):
       ${row("Redemption rate (%)", Math.round(s.redemptionRate * 100))}
       ${row("Outstanding points (liability)", s.outstanding)}
     </table>
-    <p style="font-size:12px;color:#777;margin-top:16px">Redemption rate is points redeemed vs issued — the higher it is, the more your program is bringing customers back. Outstanding points are your current liability. — ${BRAND}</p>
+    <p style="font-size:12px;color:#777;margin-top:16px">Redemption rate is points redeemed vs issued; the higher it is, the more your program is bringing customers back. Outstanding points are your current liability. ${BRAND}</p>
   </div>`;
 }
 

@@ -296,7 +296,7 @@ export default function Settings() {
         {!hasPro && (
           <Banner tone="info">
             You&rsquo;re on the free plan. Birthday bonuses, referrals, VIP tiers
-            and branding removal are Pro features —{" "}
+            and branding removal are Pro features;{" "}
             <Button variant="plain" url="/app/upgrade">
               upgrade for $19/mo flat
             </Button>
@@ -383,8 +383,8 @@ export default function Settings() {
               disabled={!hasPro}
               helpText={
                 hasPro
-                  ? "Store credit applies value straight to the customer's account at checkout — no code to enter. Only fixed-amount tiers can be issued as store credit (percentage tiers still mint a code)."
-                  : "Pro — free plans deliver rewards as discount codes."
+                  ? "Store credit applies value straight to the customer's account at checkout, with no code to enter. Only fixed-amount tiers can be issued as store credit (percentage tiers still mint a code)."
+                  : "Pro only; free plans deliver rewards as discount codes."
               }
             />
             {redeemTiers.map((t, i) => (

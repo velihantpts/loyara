@@ -12,8 +12,8 @@ import styles from "./styles.module.css";
 // title/meta/canonical/OG + FAQPage & SoftwareApplication JSON-LD + Install CTA +
 // the shop-domain login form (all SEO-load-bearing).
 
-const TITLE = `${BRAND} — flat-price Shopify loyalty & rewards (Smile.io alternative)`;
-const DESC = `A loyalty program for one flat monthly price — unlimited orders, no overage fees. Points, VIP tiers & referrals, plus 5-minute CSV migration from Smile, Rivo & BON.`;
+const TITLE = `${BRAND}: flat-price Shopify loyalty & rewards (Smile.io alternative)`;
+const DESC = `A loyalty program for one flat monthly price, with unlimited orders and no overage fees. Points, VIP tiers & referrals, plus 5-minute CSV migration from Smile, Rivo & BON.`;
 
 export const meta: MetaFunction = () => [
   { title: TITLE },
@@ -28,7 +28,7 @@ export const meta: MetaFunction = () => [
 const FAQ: { q: string; a: string }[] = [
   {
     q: "How is Loyara different from Smile.io or Yotpo?",
-    a: "Loyara is one flat monthly price with unlimited orders and no overage fees. Smile and Yotpo charge by monthly order count, so your bill jumps as you grow — Smile from $79 to $199+ and Yotpo from $199 with per-order fees on top. With Loyara your price never changes.",
+    a: "Loyara is one flat monthly price with unlimited orders and no overage fees. Smile and Yotpo charge by monthly order count, so your bill jumps as you grow: Smile from $79 to $199+ and Yotpo from $199 with per-order fees on top. With Loyara your price never changes.",
   },
   {
     q: "Can I switch from my current loyalty app without losing points?",
@@ -36,11 +36,11 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What's included?",
-    a: "Points earning and redemption, VIP tiers, a referral program, birthday bonuses, points expiry, a storefront widget, and CSV migration — all on one plan. No feature gating behind higher tiers.",
+    a: "Points earning and redemption, VIP tiers, a referral program, birthday bonuses, points expiry, a storefront widget, and CSV migration, all on one plan. No feature gating behind higher tiers.",
   },
   {
     q: "How much does it cost?",
-    a: "There's a free plan with points, redemptions and the storefront widget. Pro is $19/month flat (or $190/year) for VIP tiers, referrals, birthday bonuses, Klaviyo and CSV migration — unlimited orders, no overage fees, with a 14-day free trial.",
+    a: "There's a free plan with points, redemptions and the storefront widget. Pro is $19/month flat (or $190/year) for VIP tiers, referrals, birthday bonuses, Klaviyo and CSV migration, with unlimited orders, no overage fees, and a 14-day free trial.",
   },
 ];
 
@@ -91,12 +91,12 @@ export default function App() {
       <div className={styles.content}>
         <header className={styles.hero}>
           <h1 className={styles.heading}>
-            Shopify loyalty &amp; rewards — one flat price, unlimited orders
+            Shopify loyalty &amp; rewards: one flat price, unlimited orders
           </h1>
           <p className={styles.text}>
             {BRAND} gives your store points, VIP tiers and referrals for one flat
-            monthly price. No order-count tiers, no overage fees — your growth is
-            never your loyalty app&rsquo;s payday. The simple, honest{" "}
+            monthly price. No order-count tiers, no overage fees, so your growth
+            is never your loyalty app&rsquo;s payday. The simple, honest{" "}
             <strong>Smile.io alternative</strong>.
           </p>
           <div className={styles.ctaRow}>
@@ -130,7 +130,7 @@ export default function App() {
           <ul className={styles.bullets}>
             <li>
               <strong>Flat price, unlimited orders.</strong> One monthly fee that
-              never changes — no per-order fees, no tier cliffs at 500 or 2,500
+              never changes: no per-order fees, no tier cliffs at 500 or 2,500
               orders.
             </li>
             <li>
@@ -152,7 +152,7 @@ export default function App() {
             from a storefront widget. Set your earn rate and rewards in minutes,
             add the widget to your theme, and optionally import your existing
             program. Free to start; $19/month flat for VIP tiers, referrals and
-            every feature — unlimited orders, no overage fees.
+            every feature, with unlimited orders and no overage fees.
           </p>
           <div className={styles.ctaRow}>
             <a className={styles.cta} href={APP_STORE_URL}>

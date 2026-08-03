@@ -165,7 +165,7 @@ export default function Index() {
               />
             </InlineGrid>
             <Text as="p" variant="bodySm" tone="subdued">
-              Redemption rate is points spent vs issued — a healthy program keeps
+              Redemption rate is points spent vs issued; a healthy program keeps
               it moving, because points customers actually redeem are what bring
               them back.
               {data.stats.pointsExpired > 0
@@ -190,7 +190,7 @@ export default function Index() {
               </List.Item>
               <List.Item>
                 Add the Loyara widget to your theme so customers see and redeem
-                their points on your storefront —{" "}
+                their points on your storefront;{" "}
                 <Button
                   variant="plain"
                   url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=${WIDGET_EXTENSION_UUID}/loyara`}
@@ -205,8 +205,8 @@ export default function Index() {
                 you in{" "}
                 <Button variant="plain" url="/app/migrate">
                   Import points
-                </Button>{" "}
-                — nobody loses a point.
+                </Button>
+                . Nobody loses a point.
               </List.Item>
             </List>
           </BlockStack>
@@ -226,8 +226,8 @@ export default function Index() {
               </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
                 {data.hasPro
-                  ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal — one flat price, no overage fees."
-                  : "Free includes points, redemptions and the storefront widget. Pro is $19/mo flat — unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
+                  ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal, one flat price, no overage fees."
+                  : "Free includes points, redemptions and the storefront widget. Pro is $19/mo flat: unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
               </Text>
             </BlockStack>
             {!data.hasPro && (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { MetaFunction } from "@remix-run/node";
 import { BRAND, APP_STORE_URL, CANONICAL } from "../config";
 
-const TITLE = "Smile.io Pricing Calculator — what you'll actually pay at your order volume";
+const TITLE = "Smile.io Pricing Calculator: what you'll actually pay at your order volume";
 const DESC =
   "Estimate your real Smile.io annual cost (tier + overage fees) at your monthly order volume, and compare it to a flat $19/mo loyalty program with unlimited orders.";
 const URL = `${CANONICAL}smile-tax-calculator`;
@@ -55,7 +55,7 @@ export default function SmileTaxCalculator() {
             "@context": "https://schema.org",
             "@type": "FAQPage",
             mainEntity: [
-              { "@type": "Question", name: "How much does Smile.io cost per month?", acceptedAnswer: { "@type": "Answer", text: "Smile.io is free up to 200 orders/month, then jumps to $79/mo (Standard) and $199/mo (Growth, to 2,500 orders), with per-order overage fees above that — so your bill rises as your store grows." } },
+              { "@type": "Question", name: "How much does Smile.io cost per month?", acceptedAnswer: { "@type": "Answer", text: "Smile.io is free up to 200 orders/month, then jumps to $79/mo (Standard) and $199/mo (Growth, to 2,500 orders), with per-order overage fees above that, so your bill rises as your store grows." } },
               { "@type": "Question", name: "Is there a flat-price loyalty app?", acceptedAnswer: { "@type": "Answer", text: `${BRAND} is a flat ${money(LOYARA_MONTHLY)}/month with unlimited orders and no overage fees, including VIP tiers, referrals and CSV migration.` } },
             ],
           }),
@@ -65,7 +65,7 @@ export default function SmileTaxCalculator() {
       <h1>Smile.io Pricing Calculator</h1>
       <p style={{ color: "#555" }}>
         Smile.io bills by your monthly order count, so your loyalty bill climbs as your store
-        grows — free up to 200 orders, then $79, then $199, plus per-order overage fees. Move
+        grows: free up to 200 orders, then $79, then $199, plus per-order overage fees. Move
         the slider to estimate your real annual cost, and see it against a flat {money(LOYARA_MONTHLY)}/month.
       </p>
 
@@ -84,12 +84,12 @@ export default function SmileTaxCalculator() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 24 }}>
           <div style={{ background: "#fbfbfb", borderRadius: 10, padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: "#888" }}>Smile.io — estimated / year</div>
+            <div style={{ fontSize: 13, color: "#888" }}>Smile.io, estimated / year</div>
             <div style={{ fontSize: 30, fontWeight: 700 }}>{money(smileYr)}</div>
             <div style={{ fontSize: 12, color: "#888" }}>{money(smileMonthly(orders))}/mo</div>
           </div>
           <div style={{ background: "#f0f8f4", borderRadius: 10, padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: "#008060" }}>{BRAND} — flat / year</div>
+            <div style={{ fontSize: 13, color: "#008060" }}>{BRAND}, flat / year</div>
             <div style={{ fontSize: 30, fontWeight: 700 }}>{money(loyaraYr)}</div>
             <div style={{ fontSize: 12, color: "#008060" }}>{money(LOYARA_MONTHLY)}/mo, unlimited orders</div>
           </div>
@@ -103,10 +103,10 @@ export default function SmileTaxCalculator() {
 
       <div style={{ textAlign: "center" }}>
         <a href={APP_STORE_URL} style={{ display: "inline-block", padding: "12px 24px", background: "#1a1a1a", color: "#fff", borderRadius: 10, textDecoration: "none", fontWeight: 600 }}>
-          Switch to {BRAND} — flat {money(LOYARA_MONTHLY)}/mo
+          Switch to {BRAND}: flat {money(LOYARA_MONTHLY)}/mo
         </a>
         <p style={{ fontSize: 13, color: "#888", marginTop: 10 }}>
-          Free CSV migration — your customers keep every point. Free plan up to 200 orders/mo; 14-day Pro trial.
+          Free CSV migration; your customers keep every point. Free plan up to 200 orders/mo; 14-day Pro trial.
         </p>
       </div>
 

@@ -40,11 +40,11 @@ export default function Upgrade() {
       <BlockStack gap="400">
         <Text as="p" variant="bodyMd">
           One flat price. Every feature. Unlimited orders. Your growth is never
-          our payday — no order-count tiers, no overage fees, ever. 14-day free
+          our payday: no order-count tiers, no overage fees, ever. 14-day free
           trial, cancel anytime.
         </Text>
         <List>
-          <List.Item>Unlimited orders — no per-order or tier fees</List.Item>
+          <List.Item>Unlimited orders, no per-order or tier fees</List.Item>
           <List.Item>VIP tiers &amp; referral program</List.Item>
           <List.Item>Birthday bonuses &amp; points expiry</List.Item>
           <List.Item>CSV migration from Smile, Rivo, BON &amp; Yotpo</List.Item>

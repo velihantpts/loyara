@@ -1,7 +1,7 @@
 import type { MetaFunction } from "@remix-run/node";
 import { BRAND, SUPPORT_EMAIL } from "../config";
 
-export const meta: MetaFunction = () => [{ title: `Privacy Policy — ${BRAND}` }];
+export const meta: MetaFunction = () => [{ title: `Privacy Policy · ${BRAND}` }];
 
 export default function Privacy() {
   return (

@@ -196,7 +196,7 @@ export default function Migrate() {
               Switch from Smile, Rivo or BON in minutes
             </Text>
             <Text as="p" variant="bodyMd" tone="subdued">
-              Export your members from your old app and paste the CSV below —
+              Export your members from your old app and paste the CSV below;
               every balance moves with you. Nobody loses a point.
             </Text>
             <List>

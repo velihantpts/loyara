@@ -2,7 +2,7 @@ import type { MetaFunction } from "@remix-run/node";
 import { BRAND, SUPPORT_EMAIL } from "../config";
 
 export const meta: MetaFunction = () => [
-  { title: `Data Processing Addendum — ${BRAND}` },
+  { title: `Data Processing Addendum · ${BRAND}` },
 ];
 
 export default function Dpa() {
@@ -32,15 +32,15 @@ export default function Dpa() {
       <p>
         The merchant is the data controller of their customers&rsquo; personal
         data. {BRAND} is a data processor acting only on the merchant&rsquo;s
-        documented instructions — providing the loyalty program&rsquo;s
+        documented instructions, providing the loyalty program&rsquo;s
         functionality.
       </p>
 
       <h2>2. Scope of processing</h2>
       <p>
         {BRAND} processes only the data needed to run the loyalty program: the
-        customer identifier, email, loyalty points balance and history, and — if
-        the customer provides it — their birthday. It does not process customer
+        customer identifier, email, loyalty points balance and history, and, if
+        the customer provides it, their birthday. It does not process customer
         names, phone numbers, addresses, or payment data.
       </p>
 

@@ -371,7 +371,7 @@ async function emailRedemptionCode(
       <p>Use this code at checkout:</p>
       <p style="font-size:22px;font-family:monospace;letter-spacing:.06em;padding:12px;background:#f4f6f8;border-radius:8px;text-align:center">${code}</p>
       <p><a href="${applyUrl}" style="display:inline-block;padding:10px 18px;background:#1a1a1a;color:#fff;border-radius:8px;text-decoration:none">Apply at checkout</a></p>
-      <p style="font-size:12px;color:#888">— ${BRAND}</p>
+      <p style="font-size:12px;color:#888">${BRAND}</p>
     </div>`,
   });
 }
