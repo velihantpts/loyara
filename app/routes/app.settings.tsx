@@ -17,7 +17,12 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge, SaveBar } from "@shopify/app-bridge-react";
-import { authenticate, hasProPlan, checkProPlan } from "../shopify.server";
+import {
+  authenticate,
+  hasProPlan,
+  checkProPlan,
+  resolveBillingIsTest,
+} from "../shopify.server";
 import { ensureConfig } from "../loyalty/shop.server";
 import prisma from "../db.server";
 import {
@@ -29,10 +34,11 @@ import {
 } from "../loyalty/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
+  const isTest = await resolveBillingIsTest(admin, session.shop);
   const [config, hasPro] = await Promise.all([
     ensureConfig(session.shop),
-    hasProPlan(billing),
+    hasProPlan(billing, isTest),
   ]);
   return {
     hasPro,
@@ -73,7 +79,7 @@ interface Payload {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
   const shop = session.shop;
 
   const form = await request.formData();
@@ -87,7 +93,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // Never treat a transient billing-API error as "not Pro" — that would let this
   // action wipe a paying merchant's Pro-only config. On error, fall back to the
   // DB isPro mirror.
-  const { pro, errored } = await checkProPlan(billing);
+  const isTest = await resolveBillingIsTest(admin, shop);
+  const { pro, errored } = await checkProPlan(billing, isTest);
   const mirror = await prisma.shopConfig.findUnique({
     where: { shop },
     select: { isPro: true },

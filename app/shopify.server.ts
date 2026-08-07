@@ -96,9 +96,12 @@ export const authenticate = shopify.authenticate;
 // Swallows transient Billing API errors → false so a billing hiccup can never
 // 500 a page; every route that gates on Pro must use this, not an inline check.
 type Billing = Awaited<ReturnType<typeof shopify.authenticate.admin>>["billing"];
-export async function hasProPlan(billing: Billing): Promise<boolean> {
+export async function hasProPlan(
+  billing: Billing,
+  isTest: boolean = billingIsTest,
+): Promise<boolean> {
   try {
-    const c = await billing.check({ plans: PRO_PLANS, isTest: billingIsTest });
+    const c = await billing.check({ plans: PRO_PLANS, isTest });
     return c.hasActivePayment;
   } catch {
     return false;
@@ -111,12 +114,47 @@ export async function hasProPlan(billing: Billing): Promise<boolean> {
 // Pro-only config.
 export async function checkProPlan(
   billing: Billing,
+  isTest: boolean = billingIsTest,
 ): Promise<{ pro: boolean; errored: boolean }> {
   try {
-    const c = await billing.check({ plans: PRO_PLANS, isTest: billingIsTest });
+    const c = await billing.check({ plans: PRO_PLANS, isTest });
     return { pro: c.hasActivePayment, errored: false };
   } catch {
     return { pro: false, errored: true };
+  }
+}
+
+// On a Shopify development / App-Review store, recurring charges are ALWAYS test
+// charges — so a reviewer picking Pro creates a TEST subscription. If we then
+// billing.check with isTest:false we can't see it and the app wrongly shows Free
+// (this paused Loyara's review, requirement 1.2.3). Resolve isTest from the store
+// type: partner-development stores → test, real merchant stores → real. The SAME
+// value must be used for billing.request AND billing.check. Cached per shop (a
+// store's dev-status never changes) to avoid a GraphQL round-trip on every
+// Pro-gated page load.
+const devStoreIsTest = new Map<string, boolean>();
+type AdminGraphqlClient = { graphql: (query: string) => Promise<Response> };
+export async function resolveBillingIsTest(
+  admin: AdminGraphqlClient,
+  shop: string,
+): Promise<boolean> {
+  if (billingIsTest) return true; // local dev / BILLING_TEST=1 forces test
+  const cached = devStoreIsTest.get(shop);
+  if (cached !== undefined) return cached;
+  try {
+    const resp = await admin.graphql(
+      `#graphql
+      query StorePlanForBilling { shop { plan { partnerDevelopment } } }`,
+    );
+    const body = (await resp.json()) as {
+      data?: { shop?: { plan?: { partnerDevelopment?: boolean } } };
+    };
+    const isTest = Boolean(body?.data?.shop?.plan?.partnerDevelopment);
+    devStoreIsTest.set(shop, isTest);
+    return isTest;
+  } catch {
+    // On error default to REAL billing — never silently hand out free Pro.
+    return false;
   }
 }
 

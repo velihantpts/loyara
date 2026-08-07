@@ -13,17 +13,18 @@ import {
   Box,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { authenticate, hasProPlan } from "../shopify.server";
+import { authenticate, hasProPlan, resolveBillingIsTest } from "../shopify.server";
 import { ensureConfig } from "../loyalty/shop.server";
 import { applyEntry } from "../loyalty/points.server";
 import prisma from "../db.server";
 import { parseVipTiers, computeVipTier } from "../loyalty/config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
+  const isTest = await resolveBillingIsTest(admin, session.shop);
   const [, hasPro] = await Promise.all([
     ensureConfig(session.shop),
-    hasProPlan(billing),
+    hasProPlan(billing, isTest),
   ]);
   return { hasPro };
 };
@@ -85,7 +86,8 @@ async function resolveBatch(
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session, billing } = await authenticate.admin(request);
   const shop = session.shop;
-  if (!(await hasProPlan(billing)))
+  const isTest = await resolveBillingIsTest(admin, session.shop);
+  if (!(await hasProPlan(billing, isTest)))
     return { ok: false as const, error: "Importing points is a Pro feature." };
 
   const form = await request.formData();

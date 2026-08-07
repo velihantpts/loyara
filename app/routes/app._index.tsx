@@ -14,7 +14,7 @@ import {
   List,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate, hasProPlan } from "../shopify.server";
+import { authenticate, hasProPlan, resolveBillingIsTest } from "../shopify.server";
 import prisma from "../db.server";
 import { ensureConfig, setPro, maybeRequestReview } from "../loyalty/shop.server";
 import { programStats } from "../loyalty/stats.server";
@@ -29,10 +29,11 @@ const WIDGET_EXTENSION_UUID = "4b82198e-5b8c-4cd6-9596-a5ab04bcf133";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session, billing } = await authenticate.admin(request);
   const shop = session.shop;
+  const isTest = await resolveBillingIsTest(admin, shop);
 
   const [config, hasPro, stats] = await Promise.all([
     ensureConfig(shop),
-    hasProPlan(billing),
+    hasProPlan(billing, isTest),
     programStats(shop),
   ]);
   // Only write when the mirror actually changed (avoid a write per page load).

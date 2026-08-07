@@ -17,20 +17,22 @@ import {
   hasProPlan,
   PRO_MONTHLY,
   PRO_ANNUAL,
-  billingIsTest,
+  resolveBillingIsTest,
 } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
-  if (await hasProPlan(billing)) throw redirect("/app");
+  const { admin, session, billing } = await authenticate.admin(request);
+  const isTest = await resolveBillingIsTest(admin, session.shop);
+  if (await hasProPlan(billing, isTest)) throw redirect("/app");
   return null;
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
   const form = await request.formData();
   const plan = form.get("plan") === "annual" ? PRO_ANNUAL : PRO_MONTHLY;
-  return billing.request({ plan, isTest: billingIsTest });
+  const isTest = await resolveBillingIsTest(admin, session.shop);
+  return billing.request({ plan, isTest });
 };
 
 export default function Upgrade() {
