@@ -1,0 +1,23 @@
+# Required pre-submit / pre-merge gate. Runs the factory preflight:
+#   build + tests (billing isTest 1.2.2, ledger incl. dev-store test-order 2.1.4)
+#   + review-critic static scan for the App Store review anti-patterns.
+# Make this a required status check in the branch's protection rules.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run preflight
