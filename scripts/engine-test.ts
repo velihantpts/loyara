@@ -192,14 +192,33 @@ async function main() {
     check("clawback reduces lifetime (no VIP gaming)", (await lifetimeOf(shop, CUST)) === 100, `got ${await lifetimeOf(shop, CUST)}`);
   }
 
-  // 9. Guard rails: test order + guest order → no accrual
+  // 9. Guard rails: test/guest orders. On a REAL merchant store a Bogus-Gateway
+  // test order must NOT accrue (not real revenue). But on a Shopify development /
+  // App-Review store EVERY order a reviewer can place is a test order, so there
+  // the same test order MUST accrue — otherwise the app looks broken during
+  // review (this paused Loyara: requirement 2.1.4). The webhook passes
+  // accrueTestOrders = isDevStore(shop); here we assert BOTH branches so the fix
+  // can't silently regress back to "test order → nothing happens".
   {
     const shop = "t9.myshopify.com";
     await ensureConfig(shop);
+    // Real store (accrueTestOrders defaults false) → no accrual.
     await earnFromOrder(shop, order(8, "100.00", { test: true }), "e");
-    check("test order → no accrual", (await balanceOf(shop, CUST)) === 0);
+    check("real-store test order → no accrual", (await balanceOf(shop, CUST)) === 0);
     await earnFromOrder(shop, order(9, "100.00", { noCustomer: true }), "e");
     check("guest order → no accrual", (await prisma.customer.count({ where: { shop } })) === 0);
+
+    // Dev / App-Review store (accrueTestOrders = true) → MUST accrue + create the
+    // member, directly mirroring the reviewer's failing scenario now fixed.
+    const dshop = "t9-dev.myshopify.com";
+    await ensureConfig(dshop);
+    await earnFromOrder(dshop, order(8, "100.00", { test: true }), "e", true);
+    check(
+      "dev-store test order → accrues 100 + creates member",
+      (await balanceOf(dshop, CUST)) === 100 &&
+        (await prisma.customer.count({ where: { shop: dshop } })) === 1,
+      `balance=${await balanceOf(dshop, CUST)} members=${await prisma.customer.count({ where: { shop: dshop } })}`,
+    );
   }
 
   // 10. Referral attribution

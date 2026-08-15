@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "build": "remix vite:build",
+    "test": "node ../_factory/scripts/run-app-tests.mjs",
+    "preflight": "npm run build && npm test && node ../_factory/scripts/review-critic.mjs .",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",

@@ -29,3 +29,7 @@ pnpm-lock.yaml
 # SQLite WAL/SHM sidecars
 /prisma/dev.sqlite-wal
 /prisma/dev.sqlite-shm
+
+# factory test runner temp artifacts
+scripts/.*.cjs
+scripts/.*.db
