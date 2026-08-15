@@ -57,7 +57,20 @@ export default function Members() {
               columnContentTypes={["text", "numeric", "numeric", "text"]}
               headings={["Customer", "Points", "Lifetime", "VIP tier"]}
               rows={members.map((m) => [
-                m.label,
+                <span
+                  key={m.label}
+                  title={m.label}
+                  style={{
+                    display: "inline-block",
+                    maxWidth: 240,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    verticalAlign: "bottom",
+                  }}
+                >
+                  {m.label}
+                </span>,
                 nf.format(m.balance),
                 nf.format(m.lifetime),
                 m.vip,

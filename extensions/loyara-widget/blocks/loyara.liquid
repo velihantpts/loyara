@@ -11,7 +11,10 @@
       bottom: {{ block.settings.offset }}px; {{ block.settings.side }}: 20px;
       display: inline-flex; align-items: center; gap: 8px;
       padding: 12px 16px; border: none; border-radius: 999px; cursor: pointer;
-      font: 600 14px/1 system-ui, -apple-system, sans-serif;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1;
       background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }};
       box-shadow: 0 6px 20px rgba(0,0,0,.18);
     }
@@ -21,7 +24,9 @@
       width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px);
       overflow-y: auto; background: #fff; color: #1a1a1a; border-radius: 16px;
       box-shadow: 0 12px 44px rgba(0,0,0,.24);
-      font: 14px/1.5 system-ui, -apple-system, sans-serif;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
     }
     #loyara-panel.open { display: block; }
     .loyara-head { padding: 18px 16px; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; }
@@ -169,7 +174,7 @@
             var out = document.getElementById("loyara-redeem-out");
             if (d && d.ok){
               if (d.mode === "store_credit" || d.credited != null){
-                out.innerHTML = '<div class="loyara-msg">'+money(d.credited)+' store credit added to your account 🎉<br><small style="color:#888">It applies automatically at checkout.</small></div>';
+                out.innerHTML = '<div class="loyara-msg">'+money(d.credited)+' store credit added to your account.<br><small style="color:#888">It applies automatically at checkout.</small></div>';
               } else {
                 out.innerHTML = '<div class="loyara-code">'+esc(d.code)+'</div>'+applyLink(d.code); bindCopy(out);
               }

@@ -134,6 +134,10 @@ export default function Index() {
           </BlockStack>
         </Card>
 
+        {/* Hide the metric grids until the first member earns — a wall of zeros
+            is a poor first impression; lead new stores with setup instead. */}
+        {data.stats.members > 0 && (
+          <>
         <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="300">
           <Stat label="Members" value={nf.format(data.stats.members)} />
           <Stat
@@ -185,6 +189,8 @@ export default function Index() {
             </Text>
           </BlockStack>
         </Card>
+          </>
+        )}
 
         {/* Getting started */}
         <Card>
