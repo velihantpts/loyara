@@ -6,10 +6,10 @@ import {
   Card,
   BlockStack,
   InlineStack,
+  Box,
   Text,
   Button,
   Badge,
-  List,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
@@ -19,6 +19,16 @@ import {
   PRO_ANNUAL,
   resolveBillingIsTest,
 } from "../shopify.server";
+
+const FEATURES: { label: string; free: boolean; pro: boolean }[] = [
+  { label: "Points, rewards & storefront widget", free: true, pro: true },
+  { label: "One-tap store-credit redemption in checkout", free: true, pro: true },
+  { label: "Unlimited orders — no tier or overage fees", free: false, pro: true },
+  { label: "VIP tiers & referral program", free: false, pro: true },
+  { label: "Birthday bonuses & points expiry", free: false, pro: true },
+  { label: "CSV migration (Smile, Rivo, BON, Yotpo) & Klaviyo", free: false, pro: true },
+  { label: "Remove “Powered by Loyara” branding", free: false, pro: true },
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session, billing } = await authenticate.admin(request);
@@ -35,6 +45,77 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return billing.request({ plan, isTest });
 };
 
+function Cell({ on }: { on: boolean }) {
+  return (
+    <Box minWidth="54px">
+      <Text
+        as="span"
+        alignment="center"
+        tone={on ? "success" : "subdued"}
+        fontWeight={on ? "semibold" : "regular"}
+      >
+        {on ? "✓" : "—"}
+      </Text>
+    </Box>
+  );
+}
+
+function Compare() {
+  return (
+    <Card>
+      <BlockStack gap="300">
+        <InlineStack align="space-between" blockAlign="center" wrap={false}>
+          <Text as="h3" variant="headingSm">
+            What&rsquo;s included
+          </Text>
+          <InlineStack gap="0" wrap={false}>
+            <Box minWidth="54px">
+              <Text as="span" variant="bodySm" tone="subdued" alignment="center">
+                Free
+              </Text>
+            </Box>
+            <Box minWidth="54px">
+              <Text as="span" variant="bodySm" alignment="center" fontWeight="semibold">
+                Pro
+              </Text>
+            </Box>
+          </InlineStack>
+        </InlineStack>
+        {FEATURES.map((f) => (
+          <InlineStack key={f.label} align="space-between" blockAlign="center" gap="200" wrap={false}>
+            <Text as="span" variant="bodySm">
+              {f.label}
+            </Text>
+            <InlineStack gap="0" wrap={false}>
+              <Cell on={f.free} />
+              <Cell on={f.pro} />
+            </InlineStack>
+          </InlineStack>
+        ))}
+      </BlockStack>
+    </Card>
+  );
+}
+
+function TrustBlock() {
+  return (
+    <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+      <BlockStack gap="150">
+        <Text as="p" variant="bodySm">
+          <b>Cancel in one click</b>, anytime — no lock-in.
+        </Text>
+        <Text as="p" variant="bodySm">
+          <b>Your data stays inside Shopify.</b> We never sell or share it.
+        </Text>
+        <Text as="p" variant="bodySm">
+          <b>A real person replies.</b> Email us and you&rsquo;ll hear back from
+          the founder, not a queue.
+        </Text>
+      </BlockStack>
+    </Box>
+  );
+}
+
 export default function Upgrade() {
   const nav = useNavigation();
   const submitting = nav.state === "submitting";
@@ -49,13 +130,8 @@ export default function Upgrade() {
           our payday: no order-count tiers, no overage fees, ever. 14-day free
           trial, cancel anytime.
         </Text>
-        <List>
-          <List.Item>Unlimited orders, no per-order or tier fees</List.Item>
-          <List.Item>VIP tiers &amp; referral program</List.Item>
-          <List.Item>Birthday bonuses &amp; points expiry</List.Item>
-          <List.Item>CSV migration from Smile, Rivo, BON &amp; Yotpo</List.Item>
-          <List.Item>Remove &ldquo;Powered by Loyara&rdquo; branding</List.Item>
-        </List>
+
+        <Compare />
 
         <Card>
           <BlockStack gap="200">
@@ -63,7 +139,7 @@ export default function Upgrade() {
               <Text as="h3" variant="headingMd">
                 Annual
               </Text>
-              <Badge tone="success">2 months free</Badge>
+              <Badge tone="success">Best value · 2 months free</Badge>
             </InlineStack>
             <Text as="p" variant="headingLg">
               $190{" "}
@@ -118,8 +194,10 @@ export default function Upgrade() {
           </BlockStack>
         </Card>
 
-        <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-          $0 due today. Your 14-day free trial starts now, cancel anytime in
+        <TrustBlock />
+
+        <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
+          $0 due today. Your 14-day free trial starts now — cancel anytime in
           Settings before it ends.
         </Text>
         <Text as="p" variant="bodyXs" tone="subdued" alignment="center">
