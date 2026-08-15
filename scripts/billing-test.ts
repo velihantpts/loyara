@@ -23,10 +23,10 @@ function check(name: string, cond: boolean, detail = "") {
 }
 
 // A mock admin GraphQL client returning a given partnerDevelopment value.
-const mkAdmin = (partnerDevelopment: boolean) => ({
+const mkAdmin = (partnerDevelopment: boolean): any => ({
   graphql: async () => ({ json: async () => ({ data: { shop: { plan: { partnerDevelopment } } } }) }),
 });
-const throwAdmin = { graphql: async () => { throw new Error("graphql should not be called (cached or n/a)"); } };
+const throwAdmin: any = { graphql: async () => { throw new Error("graphql should not be called (cached or n/a)"); } };
 
 async function main() {
   const { resolveBillingIsTest, hasProPlan } = await import("../app/shopify.server");
