@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate, isDevStore } from "../shopify.server";
 import { earnFromOrder } from "../loyalty/earn.server";
 import { attributeReferral } from "../loyalty/referral.server";
 
@@ -11,8 +11,17 @@ import { attributeReferral } from "../loyalty/referral.server";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { topic, shop, payload, webhookId } = await authenticate.webhook(request);
   try {
-    await earnFromOrder(shop, payload as Record<string, unknown>, webhookId);
-    await attributeReferral(shop, payload as Record<string, unknown>);
+    // Dev/App-Review stores can only place TEST orders — accrue on those so the
+    // reviewer's end-to-end test actually awards points (req 2.1.4). Real stores
+    // keep skipping the merchant's own test orders.
+    const devStore = await isDevStore(shop);
+    await earnFromOrder(
+      shop,
+      payload as Record<string, unknown>,
+      webhookId,
+      devStore,
+    );
+    await attributeReferral(shop, payload as Record<string, unknown>, devStore);
   } catch (e) {
     console.warn(`[${topic}] accrual failed for ${shop} — returning 500 for retry:`, e);
     return new Response(null, { status: 500 });

@@ -30,8 +30,14 @@ export async function earnFromOrder(
   shop: string,
   payload: OrderPayload,
   webhookEventId?: string | null,
+  // On a real merchant store we never accrue on Bogus-Gateway test orders (they
+  // aren't real revenue). But on a Shopify development / App-Review store EVERY
+  // order a reviewer can place is a test order, so skipping them made the app
+  // look broken during review ("0 points", admin "No members yet" — req 2.1.4).
+  // The webhook passes true for dev/review stores so the end-to-end flow works.
+  accrueTestOrders = false,
 ): Promise<void> {
-  if (payload.test) return; // never accrue on test orders
+  if (payload.test && !accrueTestOrders) return; // skip test orders on real stores
 
   const orderGid =
     payload.admin_graphql_api_id ??

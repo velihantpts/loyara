@@ -50,8 +50,11 @@ interface OrderRef {
 export async function attributeReferral(
   shop: string,
   payload: OrderRef,
+  // See earnFromOrder: dev/App-Review stores can only place test orders, so we
+  // attribute referrals on those during review; real stores skip test orders.
+  accrueTestOrders = false,
 ): Promise<void> {
-  if (payload.test) return; // never attribute referrals on test orders
+  if (payload.test && !accrueTestOrders) return; // skip test orders on real stores
   const buyerGid = payload.customer?.admin_graphql_api_id;
   const codes = (payload.discount_codes ?? [])
     .map((d) => d.code)

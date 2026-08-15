@@ -158,6 +158,34 @@ export async function resolveBillingIsTest(
   }
 }
 
+// Is this a Shopify development / App-Review store? Same signal as
+// resolveBillingIsTest (shop.plan.partnerDevelopment) but for contexts that have
+// no admin client to hand — e.g. webhook handlers — so it opens an offline admin
+// session itself. Used so that TEST orders (all a reviewer can place on a dev
+// store) still accrue points during review, while real stores keep skipping the
+// merchant's own Bogus-Gateway test orders. Shares the per-shop cache.
+export async function isDevStore(shop: string): Promise<boolean> {
+  if (billingIsTest) return true; // local dev / BILLING_TEST=1
+  const cached = devStoreIsTest.get(shop);
+  if (cached !== undefined) return cached;
+  try {
+    const { admin } = await shopify.unauthenticated.admin(shop);
+    const resp = await admin.graphql(
+      `#graphql
+      query StorePlanIsDev { shop { plan { partnerDevelopment } } }`,
+    );
+    const body = (await resp.json()) as {
+      data?: { shop?: { plan?: { partnerDevelopment?: boolean } } };
+    };
+    const dev = Boolean(body?.data?.shop?.plan?.partnerDevelopment);
+    devStoreIsTest.set(shop, dev);
+    return dev;
+  } catch {
+    // On error default to REAL store — never accrue on real test orders.
+    return false;
+  }
+}
+
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
