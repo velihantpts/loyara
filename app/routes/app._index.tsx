@@ -12,6 +12,8 @@ import {
   Box,
   InlineGrid,
   List,
+  Banner,
+  Link,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate, hasProPlan, resolveBillingIsTest } from "../shopify.server";
@@ -106,13 +108,21 @@ export default function Index() {
     <Page>
       <TitleBar title={BRAND} />
       <BlockStack gap="500">
+        {!data.programActive && (
+          <Banner tone="warning" title="Your loyalty program is paused">
+            <Text as="p" variant="bodyMd">
+              Members aren&rsquo;t earning points while it&rsquo;s paused.{" "}
+              <Link url="/app/settings">Resume it in Settings</Link>.
+            </Text>
+          </Banner>
+        )}
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="h2" variant="headingLg">
                 Your loyalty program
               </Text>
-              <Badge tone={data.programActive ? "success" : "critical"}>
+              <Badge tone={data.programActive ? "success" : "warning"}>
                 {data.programActive ? "Active" : "Paused"}
               </Badge>
             </InlineStack>

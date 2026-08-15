@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { Form } from "@remix-run/react";
+import { Form, useNavigation } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -36,6 +36,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Upgrade() {
+  const nav = useNavigation();
+  const submitting = nav.state === "submitting";
+  const submittingPlan = nav.formData?.get("plan");
+
   return (
     <Page narrowWidth>
       <TitleBar title="Upgrade to Pro" />
@@ -73,8 +77,14 @@ export default function Upgrade() {
             </Text>
             <Form method="post">
               <input type="hidden" name="plan" value="annual" />
-              <Button submit variant="primary" fullWidth>
-                Start annual
+              <Button
+                submit
+                variant="primary"
+                fullWidth
+                loading={submitting && submittingPlan === "annual"}
+                disabled={submitting}
+              >
+                Start free trial
               </Button>
             </Form>
           </BlockStack>
@@ -96,13 +106,22 @@ export default function Upgrade() {
             </Text>
             <Form method="post">
               <input type="hidden" name="plan" value="monthly" />
-              <Button submit fullWidth>
-                Start monthly
+              <Button
+                submit
+                fullWidth
+                loading={submitting && submittingPlan === "monthly"}
+                disabled={submitting}
+              >
+                Start free trial
               </Button>
             </Form>
           </BlockStack>
         </Card>
 
+        <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+          $0 due today. Your 14-day free trial starts now, cancel anytime in
+          Settings before it ends.
+        </Text>
         <Text as="p" variant="bodyXs" tone="subdued" alignment="center">
           Billed securely through Shopify.
         </Text>
