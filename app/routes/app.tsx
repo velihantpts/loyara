@@ -32,6 +32,7 @@ export default function App() {
         <Link to="/app/members">Members</Link>
         <Link to="/app/settings">Settings</Link>
         <Link to="/app/migrate">Import points</Link>
+        <Link to="/app/guide">Guide</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
