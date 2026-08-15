@@ -25,7 +25,7 @@ let failed = 0;
 for (const t of tests) {
   const name = t.replace(/\.ts$/, "");
   const out = path.join("scripts", `.${name}.cjs`);
-  const needsDb = /engine/.test(name); // ledger tests hit a real SQLite DB
+  const needsDb = !/billing/.test(name); // billing-test is pure; engine/core hit a DB
   const dbFile = path.join(scriptsDir, `.${name}.db`);
   const dbUrl = `file:${dbFile}`;
   console.log(`\n=== ${name} ===`);
