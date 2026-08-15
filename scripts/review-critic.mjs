@@ -67,6 +67,55 @@ function critique(appDir) {
       "App has billing/PRO_PLANS but no resolveBillingIsTest() helper — a reviewer's TEST Pro charge on a dev store will never be seen (req 1.2.2).");
   }
 
+  // ── Config-level checks (shopify.app*.toml + shopify.server.ts) ──
+  // Read every shopify.app*.toml (config-link apps have >1); check the union.
+  const tomls = fs.readdirSync(appDir).filter((f) => /^shopify\.app.*\.toml$/.test(f));
+  const tomlSrc = tomls.map((f) => read(path.join(appDir, f))).join("\n");
+  const tomlRef = tomls[0] ? path.join(appDir, tomls[0]) : serverFile;
+
+  // Rule G1: the three mandatory GDPR/compliance webhooks must be subscribed —
+  // App Store rejects apps that don't handle them.
+  for (const topic of ["customers/data_request", "customers/redact", "shop/redact"]) {
+    if (tomlSrc && !tomlSrc.includes(topic)) {
+      add("HIGH", "gdpr-webhook-missing", tomlRef, 1,
+        `Mandatory compliance webhook '${topic}' is not subscribed in any shopify.app*.toml — required for App Store approval.`);
+    }
+  }
+  // Rule G2: and the handler route must exist for each mandatory topic.
+  const gdprRoutes = {
+    "customers/data_request": "webhooks.customers.data_request.tsx",
+    "customers/redact": "webhooks.customers.redact.tsx",
+    "shop/redact": "webhooks.shop.redact.tsx",
+  };
+  for (const [topic, route] of Object.entries(gdprRoutes)) {
+    if (!fs.existsSync(path.join(appRoot, "routes", route))) {
+      add("HIGH", "gdpr-handler-missing", path.join(appRoot, "routes", route), 1,
+        `No handler for mandatory compliance webhook '${topic}' (expected app/routes/${route}).`);
+    }
+  }
+
+  // Rule E1: an embedded app must use session-token (token-exchange) auth — a
+  // Built-for-Shopify / embedded requirement the automated checks look for.
+  if (/embedded\s*=\s*true/.test(tomlSrc) && !/unstable_newEmbeddedAuthStrategy/.test(serverSrc)) {
+    add("MEDIUM", "embedded-no-session-token-auth", serverFile, 1,
+      "Embedded app but shopify.server does not enable unstable_newEmbeddedAuthStrategy (session-token/token-exchange auth) — expected for embedded/Built-for-Shopify checks.");
+  }
+
+  // Rule E2: fail-fast prod env guard so a misconfigured deploy doesn't verify
+  // OAuth/webhook HMAC against an empty secret.
+  if (!(/NODE_ENV\s*===\s*["']production["']/.test(serverSrc) && /SHOPIFY_API_SECRET/.test(serverSrc))) {
+    add("MEDIUM", "no-prod-env-guard", serverFile, 1,
+      "No production env guard in shopify.server (throw on missing SHOPIFY_API_SECRET etc.) — a misconfigured prod deploy would verify HMAC against an empty secret.");
+  }
+
+  // Rule PCD: reading protected customer data (customers/orders) requires Partner
+  // Dashboard PCD approval — a reviewer-facing gate that can't be checked in code.
+  const scopeLine = (tomlSrc.match(/scopes\s*=\s*["']([^"']*)["']/) || [])[1] || "";
+  if (/read_customers|read_orders|write_customers/.test(scopeLine)) {
+    add("MEDIUM", "pcd-approval-reminder", tomlRef, 1,
+      `Scopes request protected customer data (${scopeLine.match(/(read_customers|read_orders|write_customers)/g)?.join(", ")}) — confirm Protected Customer Data access is approved in the Partner Dashboard before submitting.`);
+  }
+
   for (const f of files) {
     const src = read(f);
     const isRoute = /[\\/]routes[\\/]/.test(f);
@@ -98,6 +147,25 @@ function critique(appDir) {
           `A '.test' guard returns with no dev-store escape — on a dev/review store every order is a TEST order, so this skips the reviewer's order and nothing syncs (req 2.1.4). Gate on accrueTestOrders/isDevStore.`);
       }
     }
+
+    // Rule L1: never log a secret VALUE. Flags only when the secret is actually
+    // EVALUATED into the log — read from env (`process.env.RESEND_API_KEY`),
+    // interpolated (`${apiSecretKey}`), or passed as a bare argument — NOT when
+    // its NAME merely appears in a string literal ("no RESEND_API_KEY set").
+    const ENV_SEC = "RESEND_API_KEY|SHOPIFY_API_SECRET|CRON_SECRET|CLIENT_SECRET|API_SECRET|PRIVATE_KEY";
+    const VAR_SEC = "apiSecretKey|apiSecret|clientSecret|privateKey|accessToken";
+    const secretLog = new RegExp(
+      `console\\.\\w+\\((?:` +
+        `[^)]*process\\.env\\.(?:${ENV_SEC})` +          // process.env.SECRET logged
+        `|[^)]*\\$\\{[^}]*\\b(?:${VAR_SEC})\\b` +         // ${secretVar} interpolated
+        `|\\s*(?:${VAR_SEC})\\s*[),]` +                    // bare secretVar argument
+      `)`,
+      "g",
+    );
+    for (const m of src.matchAll(secretLog)) {
+      add("HIGH", "secret-in-log", f, lineOf(src, m.index),
+        `console.* appears to log a secret VALUE — remove it; secrets must never reach logs.`);
+    }
   }
 
   return { findings, hasBilling, hasResolveHelper, hasDevStoreHelper };
@@ -120,7 +188,7 @@ else apps = DEFAULT_APPS.map((a) => path.join(ROOT, a));
 
 let totalHigh = 0, totalMed = 0;
 const bar = "─".repeat(72);
-console.log(`\nReview-critic — App Store review gotchas (1.2.2 billing, 2.1.4 sync)\n${bar}`);
+console.log(`\nReview-critic — App Store review gotchas (billing 1.2.2, sync 2.1.4,\nGDPR webhooks, embedded auth, env guard, secret-in-log, PCD)\n${bar}`);
 
 for (const appDir of apps) {
   const name = path.basename(appDir);
