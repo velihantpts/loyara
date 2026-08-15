@@ -50,8 +50,8 @@ const GUIDE: {
       title: "Set your earn rate and rewards",
       body: (
         <>
-          Choose how many points customers earn per unit spent, and what they can
-          redeem those points for.
+          Choose your points earn rate — how many points a customer gets for each
+          unit of currency they spend — and what they can redeem points for.
         </>
       ),
       cta: { label: "Open Settings", url: "/app/settings" },

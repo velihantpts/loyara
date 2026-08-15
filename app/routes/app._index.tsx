@@ -75,6 +75,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     rewardCount: rewards.length,
     programActive: config.programActive,
     pointsPerDollar: config.pointsPerDollar,
+    currency: config.currency ?? "USD",
     askReview,
   };
 };
@@ -103,6 +104,20 @@ export default function Index() {
   }, [data.askReview, shopify]);
 
   const nf = new Intl.NumberFormat("en-US");
+  // Show the merchant's real currency ("€1", "£1") instead of the developer
+  // phrase "per unit spent" / a hardcoded "$". config.currency is cached on load.
+  const money1 = (() => {
+    try {
+      return new Intl.NumberFormat("en", {
+        style: "currency",
+        currency: data.currency,
+        currencyDisplay: "narrowSymbol",
+        maximumFractionDigits: 0,
+      }).format(1);
+    } catch {
+      return `${data.currency} 1`;
+    }
+  })();
 
   return (
     <Page>
@@ -128,8 +143,9 @@ export default function Index() {
             </InlineStack>
             <Text as="p" variant="bodyMd" tone="subdued">
               Members earn {data.pointsPerDollar} point
-              {data.pointsPerDollar === 1 ? "" : "s"} per unit spent, redeemable
-              for {data.rewardCount} reward{data.rewardCount === 1 ? "" : "s"}.
+              {data.pointsPerDollar === 1 ? "" : "s"} per {money1} spent,
+              redeemable for {data.rewardCount} reward
+              {data.rewardCount === 1 ? "" : "s"}.
             </Text>
           </BlockStack>
         </Card>

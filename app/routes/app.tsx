@@ -33,6 +33,7 @@ export default function App() {
         <Link to="/app/settings">Settings</Link>
         <Link to="/app/migrate">Import points</Link>
         <Link to="/app/guide">Guide</Link>
+        <Link to="/app/upgrade">Plans</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>

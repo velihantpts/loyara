@@ -42,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   ]);
   return {
     hasPro,
+    currency: config.currency ?? "USD",
     settings: {
       programActive: config.programActive,
       pointsPerDollar: config.pointsPerDollar,
@@ -153,10 +154,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { hasPro, settings } = useLoaderData<typeof loader>();
+  const { hasPro, settings, currency } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const saving = fetcher.state !== "idle";
+
+  // The merchant's real currency ("€1", "£1"), not a hardcoded "$".
+  const money1 = (() => {
+    try {
+      return new Intl.NumberFormat("en", {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol",
+        maximumFractionDigits: 0,
+      }).format(1);
+    } catch {
+      return `${currency} 1`;
+    }
+  })();
 
   const [programActive, setProgramActive] = useState(settings.programActive);
   const [pointsPerDollar, setPPD] = useState(String(settings.pointsPerDollar));
@@ -325,7 +340,7 @@ export default function Settings() {
             />
             <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
               <TextField
-                label="Points earned per $1 spent"
+                label={`Points earned per ${money1} spent`}
                 type="number"
                 autoComplete="off"
                 value={pointsPerDollar}
