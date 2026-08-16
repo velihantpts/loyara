@@ -165,7 +165,7 @@ export default function Index() {
             value={nf.format(data.stats.pointsRedeemed)}
           />
           <Stat
-            label="Outstanding (liability)"
+            label="Unredeemed points"
             value={nf.format(data.stats.outstanding)}
           />
         </InlineGrid>
