@@ -21,6 +21,7 @@ import prisma from "../db.server";
 import { ensureConfig, setPro, maybeRequestReview } from "../loyalty/shop.server";
 import { programStats, retentionCohorts } from "../loyalty/stats.server";
 import { parseRedeemTiers } from "../loyalty/config";
+import { WIDGET_SIZE } from "../lib/widget-size";
 import { requestReviewOnce } from "../lib/core/review";
 import { BRAND } from "../config";
 
@@ -479,6 +480,50 @@ export default function Index() {
               </Button>
             )}
           </InlineStack>
+        </Card>
+
+        {/* Storefront speed — REAL measured footprint (app/lib/widget-size.ts,
+            guarded by widget-size-test) + the merchant's own PageSpeed link. */}
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h3" variant="headingMd">
+                Storefront speed
+              </Text>
+              <Badge tone="success">Lightweight</Badge>
+            </InlineStack>
+            <InlineGrid columns={{ xs: 1, sm: 3 }} gap="300">
+              <Stat
+                label="Over the wire"
+                value={`${WIDGET_SIZE.gzipKB} KB`}
+                hint="gzipped CSS + JS the widget loads"
+              />
+              <Stat
+                label="Uncompressed"
+                value={`${WIDGET_SIZE.rawKB} KB`}
+                hint="raw source size"
+              />
+              <Stat
+                label="Layout shift (CLS)"
+                value="0"
+                hint="fixed-position — never pushes your content"
+              />
+            </InlineGrid>
+            <Text as="p" variant="bodySm" tone="subdued">
+              No external frameworks or CDN — the widget is inline CSS + JS, so it
+              barely touches your page speed. Measured from the shipped code, not
+              a marketing number.
+            </Text>
+            <Box>
+              <Button
+                url={`https://pagespeed.web.dev/analysis?url=https://${data.shop}`}
+                target="_blank"
+                variant="secondary"
+              >
+                Check your store on PageSpeed Insights
+              </Button>
+            </Box>
+          </BlockStack>
         </Card>
       </BlockStack>
     </Page>
