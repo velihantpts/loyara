@@ -43,17 +43,17 @@
     .loyara-earn b { color: {{ block.settings.bg_color }}; }
     .loyara-tier { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; }
     .loyara-tier + .loyara-tier { border-top: 1px solid #f2f2f2; }
-    .loyara-btn { padding: 7px 12px; border: none; border-radius: 8px; cursor: pointer; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; font-weight: 600; font-size: 13px; }
+    .loyara-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; font-weight: 600; font-size: 13px; }
     .loyara-btn:disabled { opacity: .4; cursor: default; }
     .loyara-btn.sec { background: #f1f3f5; color: #1a1a1a; }
     .loyara-msg { color: #555; padding: 4px 0; }
     .loyara-code { margin-top: 8px; padding: 10px; background: #f4f6f8; border-radius: 8px; font-family: monospace; text-align: center; font-size: 15px; letter-spacing: .05em; }
     .loyara-actions { display: flex; gap: 8px; margin-top: 8px; }
-    .loyara-actions a, .loyara-actions button { flex: 1; text-align: center; text-decoration: none; }
+    .loyara-actions a, .loyara-actions button { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
     .loyara-actions a { padding: 8px; border-radius: 8px; background: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }}; font-weight: 600; font-size: 13px; }
     .loyara-row { display: flex; gap: 6px; margin-top: 6px; }
     .loyara-row input, .loyara-row select { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font: inherit; }
-    .loyara-close { position: absolute; top: 12px; {{ block.settings.side }}: 12px; background: transparent; border: none; color: {{ block.settings.text_color }}; font-size: 20px; cursor: pointer; line-height: 1; }
+    .loyara-close { position: absolute; top: 4px; {{ block.settings.side }}: 4px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: {{ block.settings.text_color }}; font-size: 20px; cursor: pointer; line-height: 1; }
     .loyara-foot { padding: 10px 16px; font-size: 11px; color: #999; text-align: center; }
     .loyara-foot a { color: #999; }
   </style>
