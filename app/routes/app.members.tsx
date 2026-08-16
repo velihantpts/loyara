@@ -12,6 +12,8 @@ import {
   Button,
   Modal,
   TextField,
+  InlineStack,
+  useBreakpoints,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { randomUUID } from "node:crypto";
@@ -79,10 +81,17 @@ export default function Members() {
   const shopify = useAppBridge();
   const nf = new Intl.NumberFormat("en-US");
 
+  const { smDown } = useBreakpoints();
   const [active, setActive] = useState<Member | null>(null);
   const [delta, setDelta] = useState("");
   const [note, setNote] = useState("");
   const saving = fetcher.state !== "idle";
+
+  const openAdjust = (m: Member) => {
+    setActive(m);
+    setDelta("");
+    setNote("");
+  };
 
   // Close + toast once the adjustment lands (loader auto-revalidates the table).
   useEffect(() => {
@@ -120,40 +129,72 @@ export default function Members() {
           </Box>
         ) : (
           <BlockStack>
-            <DataTable
-              columnContentTypes={["text", "numeric", "numeric", "text", "text"]}
-              headings={["Customer", "Points", "Lifetime", "VIP tier", ""]}
-              rows={members.map((m) => [
-                <span
-                  key={m.gid}
-                  title={m.label}
-                  style={{
-                    display: "inline-block",
-                    maxWidth: 240,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    verticalAlign: "bottom",
-                  }}
-                >
-                  {m.label}
-                </span>,
-                nf.format(m.balance),
-                nf.format(m.lifetime),
-                m.vip,
-                <Button
-                  key={`adj-${m.gid}`}
-                  variant="plain"
-                  onClick={() => {
-                    setActive(m);
-                    setDelta("");
-                    setNote("");
-                  }}
-                >
-                  Adjust
-                </Button>,
-              ])}
-            />
+            {smDown ? (
+              // Mobile: a 5-column table overflows a 375px admin, so stack each
+              // member into a row that fits and keeps the Adjust action reachable.
+              <BlockStack gap="0">
+                {members.map((m) => (
+                  <Box
+                    key={m.gid}
+                    padding="300"
+                    borderBlockEndWidth="025"
+                    borderColor="border"
+                  >
+                    <InlineStack
+                      align="space-between"
+                      blockAlign="center"
+                      gap="300"
+                      wrap={false}
+                    >
+                      <BlockStack gap="050">
+                        <Text as="span" variant="bodyMd" truncate>
+                          {m.label}
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {nf.format(m.balance)} pts · lifetime{" "}
+                          {nf.format(m.lifetime)}
+                          {m.vip !== "—" ? ` · ${m.vip}` : ""}
+                        </Text>
+                      </BlockStack>
+                      <Button variant="plain" onClick={() => openAdjust(m)}>
+                        Adjust
+                      </Button>
+                    </InlineStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            ) : (
+              <DataTable
+                columnContentTypes={["text", "numeric", "numeric", "text", "text"]}
+                headings={["Customer", "Points", "Lifetime", "VIP tier", ""]}
+                rows={members.map((m) => [
+                  <span
+                    key={m.gid}
+                    title={m.label}
+                    style={{
+                      display: "inline-block",
+                      maxWidth: 240,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      verticalAlign: "bottom",
+                    }}
+                  >
+                    {m.label}
+                  </span>,
+                  nf.format(m.balance),
+                  nf.format(m.lifetime),
+                  m.vip,
+                  <Button
+                    key={`adj-${m.gid}`}
+                    variant="plain"
+                    onClick={() => openAdjust(m)}
+                  >
+                    Adjust
+                  </Button>,
+                ])}
+              />
+            )}
             <Box padding="300">
               <Text as="p" variant="bodyXs" tone="subdued">
                 Showing up to 100 members by balance.

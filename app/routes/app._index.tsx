@@ -11,7 +11,7 @@ import {
   Badge,
   Box,
   InlineGrid,
-  List,
+  ProgressBar,
   Banner,
   Link,
 } from "@shopify/polaris";
@@ -81,6 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasPro,
     stats,
     rewardCount: rewards.length,
+    onboarded: config.onboardedAt != null,
     cohorts,
     programActive: config.programActive,
     pointsPerDollar: config.pointsPerDollar,
@@ -140,6 +141,8 @@ export default function Index() {
       return `${data.currency} 1`;
     }
   })();
+  const onboardingDone =
+    (data.onboarded ? 1 : 0) + (data.stats.members > 0 ? 1 : 0);
 
   return (
     <Page>
@@ -282,47 +285,85 @@ export default function Index() {
           </>
         )}
 
-        {/* Getting started */}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">
-              Get set up
-            </Text>
-            <List type="number">
-              <List.Item>
-                Set your earn rate and rewards in{" "}
-                <Button variant="plain" url="/app/settings">
-                  Settings
-                </Button>
-              </List.Item>
-              <List.Item>
-                Add the Loyara widget to your theme so customers see and redeem
-                their points on your storefront;{" "}
-                <Button
-                  variant="plain"
-                  url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=${WIDGET_EXTENSION_UUID}/loyara`}
-                  target="_top"
-                >
-                  open the theme editor
-                </Button>
-                .
-              </List.Item>
-              <List.Item>
-                Switching from Smile, Rivo or BON? Bring every point balance with
-                you in{" "}
+        {/* Getting started — live progress derived from real state (settings
+            saved, first member earned). Hides once you're set up AND live. */}
+        {!(data.onboarded && data.stats.members > 0) && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingMd">
+                  Get set up
+                </Text>
+                <Badge tone={onboardingDone > 0 ? "attention" : "new"}>
+                  {`${onboardingDone} of 2 done`}
+                </Badge>
+              </InlineStack>
+              <ProgressBar
+                progress={(onboardingDone / 2) * 100}
+                size="small"
+                tone="primary"
+              />
+
+              <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+                <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone={data.onboarded ? "success" : "new"}>
+                      {data.onboarded ? "Done" : "Step 1"}
+                    </Badge>
+                    <Text
+                      as="span"
+                      variant="bodyMd"
+                      tone={data.onboarded ? "subdued" : undefined}
+                    >
+                      Set your earn rate and rewards
+                    </Text>
+                  </InlineStack>
+                  {!data.onboarded && (
+                    <Button url="/app/settings" variant="primary">
+                      Open Settings
+                    </Button>
+                  )}
+                </InlineStack>
+              </Box>
+
+              <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+                <InlineStack align="space-between" blockAlign="center" gap="300" wrap>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone={data.stats.members > 0 ? "success" : "new"}>
+                      {data.stats.members > 0 ? "Done" : "Step 2"}
+                    </Badge>
+                    <Text
+                      as="span"
+                      variant="bodyMd"
+                      tone={data.stats.members > 0 ? "subdued" : undefined}
+                    >
+                      Go live — add the widget so customers see and redeem their
+                      points
+                    </Text>
+                  </InlineStack>
+                  {data.stats.members === 0 && (
+                    <Button
+                      url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=${WIDGET_EXTENSION_UUID}/loyara`}
+                      target="_top"
+                      variant={data.onboarded ? "primary" : "secondary"}
+                    >
+                      Add the widget
+                    </Button>
+                  )}
+                </InlineStack>
+              </Box>
+
+              <InlineStack gap="400" wrap>
                 <Button variant="plain" url="/app/migrate">
-                  Import points
+                  Import points from another app
                 </Button>
-                . Nobody loses a point.
-              </List.Item>
-            </List>
-            <Box>
-              <Button variant="plain" url="/app/guide">
-                New here? Read the 2-minute setup guide
-              </Button>
-            </Box>
-          </BlockStack>
-        </Card>
+                <Button variant="plain" url="/app/guide">
+                  2-minute setup guide
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        )}
 
         {/* Pro */}
         <Card>
