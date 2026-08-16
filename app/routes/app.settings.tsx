@@ -15,6 +15,7 @@ import {
   Box,
   Banner,
   Divider,
+  Link,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge, SaveBar } from "@shopify/app-bridge-react";
 import {
@@ -344,10 +345,7 @@ export default function Settings() {
           <Banner tone="info">
             You&rsquo;re on the free plan. Birthday bonuses, referrals, VIP tiers
             and branding removal are Pro features;{" "}
-            <Button variant="plain" url="/app/upgrade">
-              upgrade for $19/mo flat
-            </Button>
-            .
+            <Link url="/app/upgrade">upgrade for $19/mo flat</Link>.
           </Banner>
         )}
 

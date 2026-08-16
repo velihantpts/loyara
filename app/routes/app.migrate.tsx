@@ -11,6 +11,7 @@ import {
   Banner,
   List,
   Box,
+  Link,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate, hasProPlan, resolveBillingIsTest } from "../shopify.server";
@@ -218,7 +219,7 @@ export default function Migrate() {
         {!hasPro && (
           <Banner tone="warning">
             Importing points is a Pro feature (included in the 14-day free trial).{" "}
-            <Button variant="plain" url="/app/upgrade">Start Pro</Button>
+            <Link url="/app/upgrade">Start Pro</Link>
           </Banner>
         )}
 
