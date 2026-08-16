@@ -242,6 +242,11 @@ export default function Index() {
                 . Nobody loses a point.
               </List.Item>
             </List>
+            <Box>
+              <Button variant="plain" url="/app/guide">
+                New here? Read the 2-minute setup guide
+              </Button>
+            </Box>
           </BlockStack>
         </Card>
 
