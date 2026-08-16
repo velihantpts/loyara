@@ -22,7 +22,8 @@ import {
 
 const FEATURES: { label: string; free: boolean; pro: boolean }[] = [
   { label: "Points, rewards & storefront widget", free: true, pro: true },
-  { label: "One-tap store-credit redemption in checkout", free: true, pro: true },
+  { label: "Redeem for automatic discount codes", free: true, pro: true },
+  { label: "Redeem as store credit — one tap in checkout, no codes", free: false, pro: true },
   { label: "Unlimited orders — no tier or overage fees", free: false, pro: true },
   { label: "VIP tiers & referral program", free: false, pro: true },
   { label: "Birthday bonuses & points expiry", free: false, pro: true },
@@ -126,9 +127,13 @@ export default function Upgrade() {
       <TitleBar title="Upgrade to Pro" />
       <BlockStack gap="400">
         <Text as="p" variant="bodyMd">
-          One flat price. Every feature. Unlimited orders. Your growth is never
-          our payday: no order-count tiers, no overage fees, ever. 14-day free
-          trial, cancel anytime.
+          <b>
+            Pro lets customers redeem points as store credit — applied in one tap
+            at checkout, with no codes to copy and no popups.
+          </b>{" "}
+          It&rsquo;s the redemption flow shoppers actually finish. Plus one flat
+          price, unlimited orders and no overage fees, ever. 14-day free trial,
+          cancel anytime.
         </Text>
 
         <Compare />
