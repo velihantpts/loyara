@@ -215,7 +215,7 @@ export default function Index() {
           <Banner tone="warning" title="Your loyalty program is paused">
             <Text as="p" variant="bodyMd">
               Members aren&rsquo;t earning points while it&rsquo;s paused.{" "}
-              <Link url="/app/settings">Resume it in Settings</Link>.
+              <Link url="/app/settings">Resume it in Program</Link>.
             </Text>
           </Banner>
         )}
@@ -403,7 +403,7 @@ export default function Index() {
                   </InlineStack>
                   {!data.onboarded && (
                     <Button url="/app/settings" variant="primary">
-                      Open Settings
+                      Open Program
                     </Button>
                   )}
                 </InlineStack>

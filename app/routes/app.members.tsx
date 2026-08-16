@@ -123,7 +123,7 @@ export default function Members() {
             >
               <p>
                 Members appear here as customers earn points. Add the widget to
-                your theme and set your earn rate in Settings to get started.
+                your theme and set your earn rate in Program to get started.
               </p>
             </EmptyState>
           </Box>

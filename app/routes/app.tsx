@@ -30,9 +30,9 @@ export default function App() {
           Dashboard
         </Link>
         <Link to="/app/members">Members</Link>
-        <Link to="/app/settings">Settings</Link>
-        <Link to="/app/migrate">Import points</Link>
+        <Link to="/app/settings">Program</Link>
         <Link to="/app/guide">Guide</Link>
+        <Link to="/app/migrate">Import points</Link>
         <Link to="/app/upgrade">Plans</Link>
       </NavMenu>
       <Outlet />

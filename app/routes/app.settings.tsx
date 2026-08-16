@@ -336,7 +336,7 @@ export default function Settings() {
 
   return (
     <Page>
-      <TitleBar title="Settings" />
+      <TitleBar title="Program" />
       <SaveBar id="loyara-settings-save-bar" open={dirty || saving}>
         {/* App Bridge styles these buttons; variant/loading are custom element
             attributes App Bridge reads, so they're spread past button's typing. */}

@@ -54,7 +54,7 @@ const GUIDE: {
           unit of currency they spend — and what they can redeem points for.
         </>
       ),
-      cta: { label: "Open Settings", url: "/app/settings" },
+      cta: { label: "Open Program", url: "/app/settings" },
     },
     {
       title: "Add the widget to your theme",
@@ -117,7 +117,7 @@ const GUIDE: {
   faqs: [
     {
       q: "What happens if I pause the program?",
-      a: "Members stop earning new points while it's paused, but every existing balance is kept. Resume any time in Settings and earning continues.",
+      a: "Members stop earning new points while it's paused, but every existing balance is kept. Resume any time in Program and earning continues.",
     },
     {
       q: "Is there an order limit on the free plan?",
