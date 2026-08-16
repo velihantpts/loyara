@@ -27,6 +27,7 @@ import {
 } from "../shopify.server";
 import { ensureConfig } from "../loyalty/shop.server";
 import prisma from "../db.server";
+import { randomUUID } from "node:crypto";
 import {
   parseRedeemTiers,
   parseVipTiers,
@@ -45,11 +46,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     hasPro,
     currency: config.currency ?? "USD",
+    shop: session.shop,
+    appUrl: process.env.SHOPIFY_APP_URL ?? "",
+    judgemeSecret: config.judgemeSecret ?? "",
     settings: {
       programActive: config.programActive,
       pointsPerDollar: config.pointsPerDollar,
       signupBonus: config.signupBonus,
       birthdayBonus: config.birthdayBonus,
+      reviewBonus: config.reviewBonus,
       pointsExpiryDays: config.pointsExpiryDays,
       referralReward: config.referralReward,
       referralFriendDiscount: config.referralFriendDiscount,
@@ -69,6 +74,7 @@ interface Payload {
   pointsPerDollar: number;
   signupBonus: number;
   birthdayBonus: number;
+  reviewBonus: number;
   pointsExpiryDays: number;
   referralReward: number;
   referralFriendDiscount: number;
@@ -129,6 +135,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }))
     .filter((t) => t.name.length > 0);
 
+  // Points-for-reviews is Pro-gated. When enabled, mint a per-shop webhook token
+  // once (kept stable) so the merchant can paste the Judge.me webhook URL.
+  const reviewBonus = hasPro ? clampInt(p.reviewBonus, 0) : 0;
+  const existing = await prisma.shopConfig.findUnique({
+    where: { shop },
+    select: { judgemeSecret: true },
+  });
+  const judgemeSecret =
+    reviewBonus > 0
+      ? existing?.judgemeSecret ?? randomUUID()
+      : existing?.judgemeSecret ?? null;
+
   await prisma.shopConfig.update({
     where: { shop },
     data: {
@@ -137,6 +155,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       signupBonus: clampInt(p.signupBonus, 0),
       // Pro-gated features silently ignored on the free plan.
       birthdayBonus: hasPro ? clampInt(p.birthdayBonus, 0) : 0,
+      reviewBonus,
+      judgemeSecret,
       pointsExpiryDays: hasPro ? clampInt(p.pointsExpiryDays, 0) : 0,
       referralReward: hasPro ? clampInt(p.referralReward, 0) : 0,
       referralFriendDiscount: hasPro ? clampInt(p.referralFriendDiscount, 0) : 0,
@@ -156,7 +176,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { hasPro, settings, currency } = useLoaderData<typeof loader>();
+  const { hasPro, settings, currency, shop, appUrl, judgemeSecret } =
+    useLoaderData<typeof loader>();
+  const reviewWebhookUrl =
+    appUrl && judgemeSecret
+      ? `${appUrl}/judgeme/review?shop=${shop}&token=${judgemeSecret}`
+      : "";
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const saving = fetcher.state !== "idle";
@@ -179,6 +204,7 @@ export default function Settings() {
   const [pointsPerDollar, setPPD] = useState(String(settings.pointsPerDollar));
   const [signupBonus, setSignup] = useState(String(settings.signupBonus));
   const [birthdayBonus, setBirthday] = useState(String(settings.birthdayBonus));
+  const [reviewBonus, setReviewBonus] = useState(String(settings.reviewBonus));
   const [expiry, setExpiry] = useState(String(settings.pointsExpiryDays));
   const [referralReward, setReferral] = useState(String(settings.referralReward));
   const [friendDiscount, setFriendDiscount] = useState(
@@ -217,6 +243,7 @@ export default function Settings() {
     pointsPerDollar,
     signupBonus,
     birthdayBonus,
+    reviewBonus,
     expiry,
     referralReward,
     friendDiscount,
@@ -241,6 +268,7 @@ export default function Settings() {
     setPPD(v.pointsPerDollar);
     setSignup(v.signupBonus);
     setBirthday(v.birthdayBonus);
+    setReviewBonus(v.reviewBonus);
     setExpiry(v.expiry);
     setReferral(v.referralReward);
     setFriendDiscount(v.friendDiscount);
@@ -288,6 +316,7 @@ export default function Settings() {
       pointsPerDollar: Number(pointsPerDollar) || 0,
       signupBonus: Number(signupBonus) || 0,
       birthdayBonus: Number(birthdayBonus) || 0,
+      reviewBonus: Number(reviewBonus) || 0,
       pointsExpiryDays: Number(expiry) || 0,
       referralReward: Number(referralReward) || 0,
       referralFriendDiscount: Number(friendDiscount) || 0,
@@ -308,6 +337,7 @@ export default function Settings() {
     pointsPerDollar,
     signupBonus,
     birthdayBonus,
+    reviewBonus,
     expiry,
     referralReward,
     friendDiscount,
@@ -600,6 +630,41 @@ export default function Settings() {
                 </InlineGrid>
               </Box>
             ))}
+            <Divider />
+            <TextField
+              label="Points for a Judge.me review (0 = off)"
+              type="number"
+              autoComplete="off"
+              value={reviewBonus}
+              onChange={setReviewBonus}
+              min={0}
+              disabled={!hasPro}
+              helpText={
+                hasPro
+                  ? "Awarded once per published review, up to 5 reviews per customer. Guests without an account earn nothing."
+                  : "Pro"
+              }
+            />
+            {reviewWebhookUrl ? (
+              <Box background="bg-surface-secondary" borderRadius="200" padding="300">
+                <BlockStack gap="150">
+                  <Text as="p" variant="bodySm">
+                    In <b>Judge.me → Settings → Integrations → Webhooks</b>, add
+                    this URL for the &ldquo;review published&rdquo; event:
+                  </Text>
+                  <Text as="p" variant="bodyXs" tone="subdued" breakWord>
+                    <code>{reviewWebhookUrl}</code>
+                  </Text>
+                  <Text as="p" variant="bodyXs" tone="subdued">
+                    Keep this URL private — it carries your store&rsquo;s token.
+                  </Text>
+                </BlockStack>
+              </Box>
+            ) : Number(reviewBonus) > 0 ? (
+              <Text as="p" variant="bodyXs" tone="subdued">
+                Save to generate your Judge.me webhook URL.
+              </Text>
+            ) : null}
             <Divider />
             <Checkbox
               label="Email customers their redemption codes"

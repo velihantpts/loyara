@@ -145,6 +145,52 @@ export async function earnBirthday(
   });
 }
 
+// Anti-abuse: cap how many review bonuses a single customer can ever earn, so a
+// reviewer can't farm points by posting many reviews.
+export const REVIEW_EARN_CAP = 5;
+
+export type ReviewEarnOutcome =
+  | "awarded"
+  | "off"
+  | "duplicate"
+  | "capped"
+  | "no-customer";
+
+/** Points for a published Judge.me review. Idempotent per review id (so webhook
+ *  retries + edits don't double-award) and capped per customer. */
+export async function earnReview(
+  shop: string,
+  customerGid: string,
+  email: string | null,
+  reviewId: string,
+): Promise<ReviewEarnOutcome> {
+  const cfg = await prisma.shopConfig.findUnique({ where: { shop } });
+  if (!cfg || !cfg.programActive || cfg.reviewBonus <= 0) return "off";
+  if (!customerGid || !reviewId) return "no-customer";
+
+  const customer = await prisma.customer.findUnique({
+    where: { shop_shopifyGid: { shop, shopifyGid: customerGid } },
+    select: { id: true },
+  });
+  if (customer) {
+    const prior = await prisma.pointsLedger.count({
+      where: { shop, customerId: customer.id, reason: "EARN_REVIEW" },
+    });
+    if (prior >= REVIEW_EARN_CAP) return "capped";
+  }
+
+  const res = await applyEntry({
+    shop,
+    customerGid,
+    customerEmail: email,
+    delta: cfg.reviewBonus,
+    reason: "EARN_REVIEW",
+    sourceType: "review",
+    sourceId: `judgeme:${reviewId}`, // idempotent per review
+  });
+  return res.applied ? "awarded" : "duplicate";
+}
+
 /** Parse a Shopify money string ("42.50") to a number; 0 on garbage. */
 function parseMoney(s: string | undefined | null): number {
   if (!s) return 0;

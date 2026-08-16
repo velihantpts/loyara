@@ -54,6 +54,8 @@ model ShopConfig {
   pointsPerDollar  Int     @default(1) // points earned per 1 unit of shop currency (order subtotal)
   signupBonus      Int     @default(0) // points granted once on customers/create
   birthdayBonus    Int     @default(0) // points granted on birthday (0 = off)
+  reviewBonus      Int     @default(0) // points per published Judge.me review (0 = off)
+  judgemeSecret    String? // per-shop token in the Judge.me webhook URL (auth)
   pointsExpiryDays Int     @default(0) // 0 = never expire
   redeemTiers      String  @default("[]") // JSON: [{ points, value, type: "fixed"|"percent" }]
   redemptionMode   String  @default("discount") // "discount" (mint a code) | "store_credit" (Pro; credit the customer's store-credit account)
