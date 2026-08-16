@@ -15,6 +15,71 @@ export interface ProgramStats {
   redemptionRate: number; // pointsRedeemed / pointsIssued, 0..1 (0 if none issued)
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EXPIRY_WARN_DAYS = 7;
+
+export interface RetentionCohorts {
+  nearReward: number; // members within 25% below their cheapest reward
+  expiringSoon: number; // members whose points expire within EXPIRY_WARN_DAYS
+  expiringPoints: number; // total points at risk in that window
+}
+
+// The actionable "bring them back" cohorts, computed the same way the daily
+// Klaviyo nudges are (inactivity-based expiry off the last EARN; near-reward off
+// the cheapest tier) — but surfaced on the dashboard so the value is visible
+// even without Klaviyo. Cheap: one count + (only when expiry is on) one groupBy.
+export async function retentionCohorts(
+  shop: string,
+  pointsExpiryDays: number,
+  cheapestRewardCost: number | null,
+): Promise<RetentionCohorts> {
+  let nearReward = 0;
+  if (cheapestRewardCost && cheapestRewardCost > 0) {
+    nearReward = await prisma.customer.count({
+      where: {
+        shop,
+        balance: {
+          gte: Math.ceil(cheapestRewardCost * 0.75),
+          lt: cheapestRewardCost,
+        },
+      },
+    });
+  }
+
+  let expiringSoon = 0;
+  let expiringPoints = 0;
+  if (pointsExpiryDays > EXPIRY_WARN_DAYS) {
+    const now = Date.now();
+    const cutoff = new Date(now - pointsExpiryDays * DAY_MS);
+    const warnCutoff = new Date(now - (pointsExpiryDays - EXPIRY_WARN_DAYS) * DAY_MS);
+    // Points expire pointsExpiryDays after the last EARN. "Expiring soon" = that
+    // last earn is past the warn threshold but not yet past the expiry cutoff.
+    const lastEarns = await prisma.pointsLedger.groupBy({
+      by: ["customerId"],
+      where: { shop, reason: { startsWith: "EARN" } },
+      _max: { createdAt: true },
+    });
+    const soonIds = lastEarns
+      .filter(
+        (r) =>
+          r._max.createdAt &&
+          r._max.createdAt >= cutoff &&
+          r._max.createdAt < warnCutoff,
+      )
+      .map((r) => r.customerId);
+    if (soonIds.length > 0) {
+      const soon = await prisma.customer.findMany({
+        where: { shop, id: { in: soonIds }, balance: { gt: 0 } },
+        select: { balance: true },
+      });
+      expiringSoon = soon.length;
+      expiringPoints = soon.reduce((s, c) => s + c.balance, 0);
+    }
+  }
+
+  return { nearReward, expiringSoon, expiringPoints };
+}
+
 export async function programStats(shop: string): Promise<ProgramStats> {
   const [
     members,

@@ -19,7 +19,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate, hasProPlan, resolveBillingIsTest } from "../shopify.server";
 import prisma from "../db.server";
 import { ensureConfig, setPro, maybeRequestReview } from "../loyalty/shop.server";
-import { programStats } from "../loyalty/stats.server";
+import { programStats, retentionCohorts } from "../loyalty/stats.server";
 import { parseRedeemTiers } from "../loyalty/config";
 import { requestReviewOnce } from "../lib/core/review";
 import { BRAND } from "../config";
@@ -62,6 +62,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const rewards = parseRedeemTiers(config.redeemTiers);
+  // Actionable retention cohorts (only worth computing once there are members).
+  const cheapestReward = rewards.length
+    ? Math.min(...rewards.map((r) => r.points))
+    : null;
+  const cohorts =
+    stats.members > 0
+      ? await retentionCohorts(shop, config.pointsExpiryDays, cheapestReward)
+      : { nearReward: 0, expiringSoon: 0, expiringPoints: 0 };
 
   // Peak-value moment → once-only review prompt (first time we cross 5 members
   // AND at least one reward has been redeemed).
@@ -73,6 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasPro,
     stats,
     rewardCount: rewards.length,
+    cohorts,
     programActive: config.programActive,
     pointsPerDollar: config.pointsPerDollar,
     currency: config.currency ?? "USD",
@@ -80,7 +89,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <Box background="bg-surface-secondary" borderRadius="300" padding="400">
       <BlockStack gap="100">
@@ -90,6 +107,11 @@ function Stat({ label, value }: { label: string; value: string }) {
         <Text as="span" variant="headingLg">
           {value}
         </Text>
+        {hint ? (
+          <Text as="span" variant="bodyXs" tone="subdued">
+            {hint}
+          </Text>
+        ) : null}
       </BlockStack>
     </Box>
   );
@@ -155,18 +177,25 @@ export default function Index() {
         {data.stats.members > 0 && (
           <>
         <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="300">
-          <Stat label="Members" value={nf.format(data.stats.members)} />
+          <Stat
+            label="Members"
+            value={nf.format(data.stats.members)}
+            hint="Customers enrolled in your program"
+          />
           <Stat
             label="Points issued"
             value={nf.format(data.stats.pointsIssued)}
+            hint="Total points ever earned"
           />
           <Stat
             label="Points redeemed"
             value={nf.format(data.stats.pointsRedeemed)}
+            hint="Points customers have cashed in for rewards"
           />
           <Stat
             label="Unredeemed points"
             value={nf.format(data.stats.outstanding)}
+            hint="Still owed to customers — your liability"
           />
         </InlineGrid>
 
@@ -181,18 +210,22 @@ export default function Index() {
               <Stat
                 label="Active members"
                 value={`${nf.format(data.stats.activeMembers)} of ${nf.format(data.stats.members)}`}
+                hint="Hold a spendable balance right now"
               />
               <Stat
                 label="Members who redeemed"
                 value={nf.format(data.stats.redeemingMembers)}
+                hint="Have claimed at least one reward"
               />
               <Stat
                 label="Redemption rate"
                 value={`${Math.round(data.stats.redemptionRate * 100)}%`}
+                hint="Points redeemed vs issued"
               />
               <Stat
                 label="Avg active balance"
                 value={nf.format(data.stats.avgBalance)}
+                hint="Mean points per active member"
               />
             </InlineGrid>
             <Text as="p" variant="bodySm" tone="subdued">
@@ -205,6 +238,47 @@ export default function Index() {
             </Text>
           </BlockStack>
         </Card>
+
+        {/* Actionable retention cohorts — the return hook rivals lead with. */}
+        {(data.cohorts.nearReward > 0 || data.cohorts.expiringSoon > 0) && (
+          <Card>
+            <BlockStack gap="300">
+              <Text as="h3" variant="headingMd">
+                Bring them back
+              </Text>
+              <BlockStack gap="200">
+                {data.cohorts.nearReward > 0 && (
+                  <InlineStack gap="200" blockAlign="center" wrap={false}>
+                    <Badge tone="attention">
+                      {nf.format(data.cohorts.nearReward)}
+                    </Badge>
+                    <Text as="span" variant="bodyMd">
+                      member{data.cohorts.nearReward === 1 ? " is" : "s are"} close
+                      to their next reward — one more order could get them there.
+                    </Text>
+                  </InlineStack>
+                )}
+                {data.cohorts.expiringSoon > 0 && (
+                  <InlineStack gap="200" blockAlign="center" wrap={false}>
+                    <Badge tone="warning">
+                      {nf.format(data.cohorts.expiringSoon)}
+                    </Badge>
+                    <Text as="span" variant="bodyMd">
+                      member{data.cohorts.expiringSoon === 1 ? " has" : "s have"}{" "}
+                      {nf.format(data.cohorts.expiringPoints)} points expiring
+                      within 7 days.
+                    </Text>
+                  </InlineStack>
+                )}
+              </BlockStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {data.hasPro
+                  ? "Pro sends these members an automatic Klaviyo nudge before it's too late."
+                  : "Pro can nudge these members automatically (via Klaviyo) before it's too late — turning at-risk points into repeat orders."}
+              </Text>
+            </BlockStack>
+          </Card>
+        )}
           </>
         )}
 
@@ -267,6 +341,13 @@ export default function Index() {
                   ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal, one flat price, no overage fees."
                   : "Free includes points, redemptions and the storefront widget. Pro is $19/mo flat: unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
               </Text>
+              {!data.hasPro && data.stats.members >= 50 ? (
+                <Text as="p" variant="bodySm">
+                  At {nf.format(data.stats.members)} members, Smile&rsquo;s Growth
+                  plan would run ~$199/mo — Loyara stays <b>$19 flat</b>, no matter
+                  how big you grow.
+                </Text>
+              ) : null}
             </BlockStack>
             {!data.hasPro && (
               <Button url="/app/upgrade" variant="primary">
