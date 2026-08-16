@@ -16,6 +16,7 @@ import {
   Banner,
   Divider,
   Link,
+  Collapsible,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge, SaveBar } from "@shopify/app-bridge-react";
 import {
@@ -198,6 +199,15 @@ export default function Settings() {
       : [{ points: 500, value: 5, type: "fixed" }],
   );
   const [vipTiers, setVip] = useState<VipTier[]>(settings.vipTiers);
+  // Progressive disclosure: keep the advanced/Pro block (VIP, referrals, Klaviyo,
+  // branding) collapsed by default so the core setup isn't a wall — but start it
+  // open for stores that already configured any of it.
+  const [showAdvanced, setShowAdvanced] = useState(
+    settings.vipTiers.length > 0 ||
+      settings.referralReward > 0 ||
+      Boolean(settings.klaviyoApiKey) ||
+      settings.brandingRemoved,
+  );
 
   // Contextual save bar: a snapshot of every editable value drives the dirty
   // check + Discard. `baseline` is the last-saved (or loaded) state; the bar
@@ -495,13 +505,30 @@ export default function Settings() {
           </BlockStack>
         </Card>
 
-        {/* VIP + referrals (Pro) */}
+        {/* Advanced & Pro — collapsed by default so the core setup isn't a wall */}
         <Card>
-          <BlockStack gap="400">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h3" variant="headingMd">
-                VIP tiers &amp; referrals
-              </Text>
+          <BlockStack gap="300">
+            <Button
+              variant="plain"
+              textAlign="left"
+              fullWidth
+              disclosure={showAdvanced ? "up" : "down"}
+              onClick={() => setShowAdvanced((s) => !s)}
+              ariaExpanded={showAdvanced}
+              ariaControls="advanced-settings"
+            >
+              Advanced &amp; Pro — VIP tiers, referrals, Klaviyo, branding
+            </Button>
+            <Collapsible
+              id="advanced-settings"
+              open={showAdvanced}
+              transition={{ duration: "150ms", timingFunction: "ease-in-out" }}
+            >
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingMd">
+                    VIP tiers &amp; referrals
+                  </Text>
               <Button
                 disabled={!hasPro}
                 onClick={() =>
@@ -604,6 +631,8 @@ export default function Settings() {
               disabled={!hasPro}
               helpText={hasPro ? undefined : "Pro"}
             />
+              </BlockStack>
+            </Collapsible>
           </BlockStack>
         </Card>
 
