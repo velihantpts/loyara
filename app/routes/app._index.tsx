@@ -118,6 +118,69 @@ function Stat({
   );
 }
 
+// Signature hero gauge — the same ring DNA as the compliance apps' ScoreRing, so
+// the portfolio reads as one product family. Shows the program's headline health
+// number (redemption rate) instead of a wall of settings.
+function Gauge({ value, caption }: { value: number; caption: string }) {
+  const r = 46;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const offset = circ * (1 - pct / 100);
+  return (
+    <svg
+      width="112"
+      height="112"
+      viewBox="0 0 112 112"
+      role="img"
+      aria-label={`${caption}: ${pct}%`}
+      style={{ flexShrink: 0 }}
+    >
+      <circle
+        cx="56"
+        cy="56"
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity="0.12"
+        strokeWidth="10"
+      />
+      <circle
+        cx="56"
+        cy="56"
+        r={r}
+        fill="none"
+        stroke="var(--p-color-text-success, #008060)"
+        strokeWidth="10"
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        transform="rotate(-90 56 56)"
+      />
+      <text
+        x="56"
+        y="52"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize="26"
+        fontWeight="600"
+        fill="currentColor"
+      >
+        {pct}%
+      </text>
+      <text
+        x="56"
+        y="74"
+        textAnchor="middle"
+        fontSize="10"
+        fill="currentColor"
+        fillOpacity="0.6"
+      >
+        {caption}
+      </text>
+    </svg>
+  );
+}
+
 export default function Index() {
   const data = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
@@ -157,22 +220,42 @@ export default function Index() {
           </Banner>
         )}
         <Card>
-          <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingLg">
-                Your loyalty program
+          <InlineStack
+            align="space-between"
+            blockAlign="center"
+            wrap={false}
+            gap="400"
+          >
+            <BlockStack gap="300">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h2" variant="headingLg">
+                  Your loyalty program
+                </Text>
+                <Badge tone={data.programActive ? "success" : "warning"}>
+                  {data.programActive ? "Active" : "Paused"}
+                </Badge>
+              </InlineStack>
+              <Text as="p" variant="bodyMd" tone="subdued">
+                Members earn {data.pointsPerDollar} point
+                {data.pointsPerDollar === 1 ? "" : "s"} per {money1} spent,
+                redeemable for {data.rewardCount} reward
+                {data.rewardCount === 1 ? "" : "s"}.
               </Text>
-              <Badge tone={data.programActive ? "success" : "warning"}>
-                {data.programActive ? "Active" : "Paused"}
-              </Badge>
-            </InlineStack>
-            <Text as="p" variant="bodyMd" tone="subdued">
-              Members earn {data.pointsPerDollar} point
-              {data.pointsPerDollar === 1 ? "" : "s"} per {money1} spent,
-              redeemable for {data.rewardCount} reward
-              {data.rewardCount === 1 ? "" : "s"}.
-            </Text>
-          </BlockStack>
+              {data.stats.members > 0 && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {nf.format(data.stats.members)} member
+                  {data.stats.members === 1 ? "" : "s"} ·{" "}
+                  {nf.format(data.stats.outstanding)} unredeemed points
+                </Text>
+              )}
+            </BlockStack>
+            {data.stats.members > 0 && (
+              <Gauge
+                value={data.stats.redemptionRate * 100}
+                caption="redeemed"
+              />
+            )}
+          </InlineStack>
         </Card>
 
         {/* Hide the metric grids until the first member earns — a wall of zeros
