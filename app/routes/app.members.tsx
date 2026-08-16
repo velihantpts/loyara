@@ -1,5 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useEffect, useState } from "react";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -8,11 +9,16 @@ import {
   BlockStack,
   Box,
   EmptyState,
+  Button,
+  Modal,
+  TextField,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { randomUUID } from "node:crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { displayBalance } from "../loyalty/balance.server";
+import { applyEntry } from "../loyalty/points.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -23,6 +29,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   return {
     members: customers.map((c) => ({
+      gid: c.shopifyGid,
       label: c.email ?? c.shopifyGid.replace("gid://shopify/Customer/", "#"),
       balance: displayBalance(c.balance),
       lifetime: c.lifetimeEarned,
@@ -31,9 +38,69 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+// Manual points adjustment (goodwill credit / correction). Goes through the same
+// applyEntry ledger primitive as everything else, with a unique sourceId so each
+// adjustment is its own immutable, audited entry (never deduped). ADJUST_MANUAL
+// moves the balance but not lifetimeEarned, so it can't quietly inflate VIP tier.
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const form = await request.formData();
+  const customerGid = String(form.get("customerGid") ?? "");
+  const delta = Math.trunc(Number(form.get("delta")));
+  const note = String(form.get("note") ?? "").slice(0, 200);
+
+  if (!customerGid.startsWith("gid://") || !Number.isFinite(delta) || delta === 0) {
+    return { ok: false, error: "Enter a non-zero number of points." };
+  }
+
+  await applyEntry({
+    shop: session.shop,
+    customerGid,
+    delta,
+    reason: "ADJUST_MANUAL",
+    sourceType: "manual",
+    sourceId: `manual-${randomUUID()}`,
+    meta: { note, source: "admin-members" },
+  });
+  return { ok: true, error: null as string | null };
+};
+
+type Member = {
+  gid: string;
+  label: string;
+  balance: number;
+  lifetime: number;
+  vip: string;
+};
+
 export default function Members() {
   const { members } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
+  const shopify = useAppBridge();
   const nf = new Intl.NumberFormat("en-US");
+
+  const [active, setActive] = useState<Member | null>(null);
+  const [delta, setDelta] = useState("");
+  const [note, setNote] = useState("");
+  const saving = fetcher.state !== "idle";
+
+  // Close + toast once the adjustment lands (loader auto-revalidates the table).
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    if (fetcher.data.ok) {
+      shopify.toast.show("Points adjusted");
+      setActive(null);
+      setDelta("");
+      setNote("");
+    } else if (fetcher.data.error) {
+      shopify.toast.show(fetcher.data.error, { isError: true });
+    }
+  }, [fetcher.state, fetcher.data, shopify]);
+
+  const save = () => {
+    if (!active) return;
+    fetcher.submit({ customerGid: active.gid, delta, note }, { method: "POST" });
+  };
 
   return (
     <Page>
@@ -54,11 +121,11 @@ export default function Members() {
         ) : (
           <BlockStack>
             <DataTable
-              columnContentTypes={["text", "numeric", "numeric", "text"]}
-              headings={["Customer", "Points", "Lifetime", "VIP tier"]}
+              columnContentTypes={["text", "numeric", "numeric", "text", "text"]}
+              headings={["Customer", "Points", "Lifetime", "VIP tier", ""]}
               rows={members.map((m) => [
                 <span
-                  key={m.label}
+                  key={m.gid}
                   title={m.label}
                   style={{
                     display: "inline-block",
@@ -74,6 +141,17 @@ export default function Members() {
                 nf.format(m.balance),
                 nf.format(m.lifetime),
                 m.vip,
+                <Button
+                  key={`adj-${m.gid}`}
+                  variant="plain"
+                  onClick={() => {
+                    setActive(m);
+                    setDelta("");
+                    setNote("");
+                  }}
+                >
+                  Adjust
+                </Button>,
               ])}
             />
             <Box padding="300">
@@ -84,6 +162,49 @@ export default function Members() {
           </BlockStack>
         )}
       </Card>
+
+      {active ? (
+        <Modal
+          open
+          onClose={() => setActive(null)}
+          title={`Adjust points — ${active.label}`}
+          primaryAction={{
+            content: "Save adjustment",
+            onAction: save,
+            loading: saving,
+            disabled: saving || delta.trim() === "",
+          }}
+          secondaryActions={[
+            { content: "Cancel", onAction: () => setActive(null) },
+          ]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <Text as="p" variant="bodySm" tone="subdued">
+                Current balance: {nf.format(active.balance)} points. Enter a
+                positive number to add points, or a negative number to remove
+                them.
+              </Text>
+              <TextField
+                label="Points adjustment"
+                type="number"
+                value={delta}
+                onChange={setDelta}
+                autoComplete="off"
+                placeholder="e.g. 100 or -50"
+              />
+              <TextField
+                label="Note (optional)"
+                value={note}
+                onChange={setNote}
+                autoComplete="off"
+                maxLength={200}
+                helpText="Saved to the ledger for your records."
+              />
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      ) : null}
     </Page>
   );
 }

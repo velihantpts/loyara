@@ -246,6 +246,31 @@ export default function Settings() {
     [applyValues, baseline],
   );
 
+  // One-click, industry-standard starter program. Fills the form with sensible,
+  // visibly-rewarding defaults (a reachable first reward, a welcome bonus) then
+  // lets the merchant review and Save — the default seed is near-invisible, so
+  // this is the fastest path to a program worth showing shoppers. Pro-only and
+  // sensitive fields (Klaviyo key, VIP tiers, branding, redemption mode) are
+  // preserved from the current state.
+  const useRecommended = useCallback(() => {
+    applyValues({
+      ...cvRef.current,
+      programActive: true,
+      pointsPerDollar: "10",
+      signupBonus: "200",
+      birthdayBonus: "250",
+      expiry: "365",
+      referralReward: "500",
+      friendDiscount: "10",
+      redeemTiers: [
+        { points: 500, value: 5, type: "fixed" },
+        { points: 1000, value: 12, type: "fixed" },
+        { points: 2500, value: 30, type: "fixed" },
+      ],
+    });
+    shopify.toast.show("Recommended starter loaded — review and Save");
+  }, [applyValues, shopify]);
+
   const save = useCallback(() => {
     const payload: Payload = {
       programActive,
@@ -332,6 +357,22 @@ export default function Settings() {
             <Text as="h3" variant="headingMd">
               Earning
             </Text>
+            <Box background="bg-surface-secondary" borderRadius="200" padding="300">
+              <InlineStack
+                align="space-between"
+                blockAlign="center"
+                gap="300"
+                wrap={false}
+              >
+                <Text as="span" variant="bodySm" tone="subdued">
+                  New to loyalty? Load a proven starter program and tweak from
+                  there.
+                </Text>
+                <Button onClick={useRecommended} variant="secondary">
+                  Use recommended starter
+                </Button>
+              </InlineStack>
+            </Box>
             <Checkbox
               label="Program active"
               checked={programActive}
