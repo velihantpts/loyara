@@ -55,6 +55,19 @@ async function main() {
   const boomBilling = { check: async () => { throw new Error("billing down"); } } as any;
   check("hasProPlan swallows billing error -> false", (await hasProPlan(boomBilling, true)) === false);
 
+  // 7. review 1.2.2: a subscription is a TEST charge (dev/review store) or a REAL
+  // charge (live store), never both. hasProPlan now checks BOTH envs, so a store
+  // where partnerDevelopment didn't flag it (isTest resolved false) still reads its
+  // TEST sub as Pro — the reviewer's exact failure. Can't false-Pro: a real store
+  // has no test charge, a dev store has no real charge.
+  const envMock = (activeIsTest: boolean) => ({
+    check: async ({ isTest }: { isTest: boolean }) => ({ hasActivePayment: isTest === activeIsTest }),
+  }) as any;
+  check("hasProPlan sees a TEST sub when isTest resolved false", (await hasProPlan(envMock(true), false)) === true);
+  check("hasProPlan sees a REAL sub when isTest resolved true", (await hasProPlan(envMock(false), true)) === true);
+  const neverActive = { check: async () => ({ hasActivePayment: false }) } as any;
+  check("hasProPlan false when neither env has a sub", (await hasProPlan(neverActive, false)) === false);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

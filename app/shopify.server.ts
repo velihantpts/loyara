@@ -96,13 +96,28 @@ export const authenticate = shopify.authenticate;
 // Swallows transient Billing API errors → false so a billing hiccup can never
 // 500 a page; every route that gates on Pro must use this, not an inline check.
 type Billing = Awaited<ReturnType<typeof shopify.authenticate.admin>>["billing"];
+
+// Check for an active Pro payment across BOTH billing environments. A subscription
+// is either a TEST charge (dev / App-Review stores) or a REAL charge (live stores),
+// never both — so if the primary (store-type-resolved) isTest finds nothing, we
+// re-check the other environment. This can only DETECT a sub we'd otherwise miss
+// when the store type was misclassified; it can NEVER invent a false Pro (a real
+// store has no test charge, a dev store has no real charge). Review 1.2.2 requires
+// exactly this: a reviewer's approved TEST plan must be seen even if partnerDevelopment
+// didn't flag their store. Returns the check that found the payment, else the primary.
+async function checkProAnyEnv(billing: Billing, isTest: boolean) {
+  const primary = await billing.check({ plans: PRO_PLANS, isTest });
+  if (primary.hasActivePayment) return primary;
+  const other = await billing.check({ plans: PRO_PLANS, isTest: !isTest });
+  return other.hasActivePayment ? other : primary;
+}
+
 export async function hasProPlan(
   billing: Billing,
   isTest: boolean = billingIsTest,
 ): Promise<boolean> {
   try {
-    const c = await billing.check({ plans: PRO_PLANS, isTest });
-    return c.hasActivePayment;
+    return (await checkProAnyEnv(billing, isTest)).hasActivePayment;
   } catch {
     return false;
   }
@@ -117,7 +132,7 @@ export async function checkProPlan(
   isTest: boolean = billingIsTest,
 ): Promise<{ pro: boolean; errored: boolean }> {
   try {
-    const c = await billing.check({ plans: PRO_PLANS, isTest });
+    const c = await checkProAnyEnv(billing, isTest);
     return { pro: c.hasActivePayment, errored: false };
   } catch {
     return { pro: false, errored: true };
