@@ -464,12 +464,12 @@ export default function Index() {
               <Text as="p" variant="bodySm" tone="subdued">
                 {data.hasPro
                   ? "You're on Pro: unlimited orders, VIP tiers, referrals, CSV migration and branding removal, one flat price, no overage fees."
-                  : "Free includes points, redemptions and the storefront widget. Pro is $19/mo flat: unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
+                  : "Free includes points, redemptions and the storefront widget. Pro is $9/mo flat: unlimited orders, VIP tiers, referrals, birthday bonuses, CSV migration and Klaviyo, with no overage fees ever. 14-day free trial."}
               </Text>
               {!data.hasPro && data.stats.members >= 50 ? (
                 <Text as="p" variant="bodySm">
                   At {nf.format(data.stats.members)} members, Smile&rsquo;s Growth
-                  plan would run ~$199/mo — Loyara stays <b>$19 flat</b>, no matter
+                  plan would run ~$199/mo — Loyara stays <b>$9 flat</b>, no matter
                   how big you grow.
                 </Text>
               ) : null}

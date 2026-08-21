@@ -144,16 +144,16 @@ export default function Upgrade() {
               <Text as="h3" variant="headingMd">
                 Annual
               </Text>
-              <Badge tone="success">Best value · 2 months free</Badge>
+              <Badge tone="success">Best value · 6 months free</Badge>
             </InlineStack>
             <Text as="p" variant="headingLg">
-              $190{" "}
+              $54{" "}
               <Text as="span" variant="bodyMd" tone="subdued">
                 / year
               </Text>
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              ~$15.83/mo. Compare: Smile Growth $199/mo, Yotpo $199/mo + per-order
+              ~$4.50/mo. Compare: Smile Growth $199/mo, Yotpo $199/mo + per-order
               fees.
             </Text>
             <Form method="post">
@@ -177,7 +177,7 @@ export default function Upgrade() {
               Monthly
             </Text>
             <Text as="p" variant="headingLg">
-              $19{" "}
+              $9{" "}
               <Text as="span" variant="bodyMd" tone="subdued">
                 / month
               </Text>
