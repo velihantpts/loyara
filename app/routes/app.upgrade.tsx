@@ -1,3 +1,4 @@
+import { PRICE_MONTHLY, PRICE_ANNUAL, PRICE_ANNUAL_PER_MO, ANNUAL_BADGE } from "../pricing";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { Form, useNavigation } from "@remix-run/react";
@@ -144,16 +145,16 @@ export default function Upgrade() {
               <Text as="h3" variant="headingMd">
                 Annual
               </Text>
-              <Badge tone="success">Best value · 6 months free</Badge>
+              <Badge tone="success">{ANNUAL_BADGE}</Badge>
             </InlineStack>
             <Text as="p" variant="headingLg">
-              $54{" "}
+              {PRICE_ANNUAL}{" "}
               <Text as="span" variant="bodyMd" tone="subdued">
                 / year
               </Text>
             </Text>
             <Text as="p" variant="bodySm" tone="subdued">
-              ~$4.50/mo. Compare: Smile Growth $199/mo, Yotpo $199/mo + per-order
+              ~{PRICE_ANNUAL_PER_MO}/mo. Compare: Smile Growth $199/mo, Yotpo $199/mo + per-order
               fees.
             </Text>
             <Form method="post">
@@ -177,7 +178,7 @@ export default function Upgrade() {
               Monthly
             </Text>
             <Text as="p" variant="headingLg">
-              $9{" "}
+              {PRICE_MONTHLY}{" "}
               <Text as="span" variant="bodyMd" tone="subdued">
                 / month
               </Text>

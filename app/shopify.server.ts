@@ -7,6 +7,7 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { PRICING } from "./pricing";
 
 // Pro billing. Free tier = points earn/redeem + storefront widget (feature-gated,
 // no order-count limit enforced). Pro (monthly or annual) = every feature (VIP tiers,
@@ -58,20 +59,20 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
   billing: {
     [PRO_MONTHLY]: {
-      trialDays: 14,
+      trialDays: PRICING.trialDays,
       lineItems: [
         {
-          amount: 9,
+          amount: PRICING.monthly,
           currencyCode: "USD",
           interval: BillingInterval.Every30Days,
         },
       ],
     },
     [PRO_ANNUAL]: {
-      trialDays: 14,
+      trialDays: PRICING.trialDays,
       lineItems: [
         {
-          amount: 54,
+          amount: PRICING.annual,
           currencyCode: "USD",
           interval: BillingInterval.Annual,
         },
