@@ -26,6 +26,7 @@ import {
   resolveBillingIsTest,
 } from "../shopify.server";
 import { ensureConfig } from "../loyalty/shop.server";
+import { PRICE_MONTHLY } from "../pricing";
 import prisma from "../db.server";
 import { randomUUID } from "node:crypto";
 import {
@@ -385,7 +386,7 @@ export default function Settings() {
           <Banner tone="info">
             You&rsquo;re on the free plan. Birthday bonuses, referrals, VIP tiers
             and branding removal are Pro features;{" "}
-            <Link url="/app/upgrade">upgrade for $19/mo flat</Link>.
+            <Link url="/app/upgrade">upgrade for {PRICE_MONTHLY}/mo flat</Link>.
           </Banner>
         )}
 

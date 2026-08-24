@@ -140,6 +140,26 @@ export async function checkProPlan(
   }
 }
 
+// The active subscription's id + duration, so the Upgrade/Plans page can let a
+// merchant CHANGE billing period (Monthly↔Annual) or CANCEL (downgrade to Free)
+// without contacting support or reinstalling (App Store review requirement
+// 1.2.3). Uses checkProAnyEnv so the sub is found regardless of the test/real env.
+export async function activeSubscription(
+  billing: Billing,
+  isTest: boolean = billingIsTest,
+): Promise<{ id: string; plan: "Monthly" | "Annual"; name: string } | null> {
+  try {
+    const c = await checkProAnyEnv(billing, isTest);
+    if (!c.hasActivePayment) return null;
+    const sub = c.appSubscriptions?.[0];
+    if (!sub?.id) return null;
+    const plan = sub.name === PRO_ANNUAL ? "Annual" : "Monthly";
+    return { id: sub.id, plan, name: sub.name };
+  } catch {
+    return null;
+  }
+}
+
 // On a Shopify development / App-Review store, recurring charges are ALWAYS test
 // charges — so a reviewer picking Pro creates a TEST subscription. If we then
 // billing.check with isTest:false we can't see it and the app wrongly shows Free
@@ -160,12 +180,21 @@ export async function resolveBillingIsTest(
   try {
     const resp = await admin.graphql(
       `#graphql
-      query StorePlanForBilling { shop { plan { partnerDevelopment } } }`,
+      query StorePlanForBilling { shop { plan { partnerDevelopment displayName } } }`,
     );
     const body = (await resp.json()) as {
-      data?: { shop?: { plan?: { partnerDevelopment?: boolean } } };
+      data?: {
+        shop?: { plan?: { partnerDevelopment?: boolean; displayName?: string } };
+      };
     };
-    const isTest = Boolean(body?.data?.shop?.plan?.partnerDevelopment);
+    const plan = body?.data?.shop?.plan;
+    // Same non-production detection as isDevStore (they share devStoreIsTest, so
+    // the two must agree): partnerDevelopment OR a dev/preview/partner/staff/
+    // trial/sandbox plan name — partnerDevelopment alone under-detects review
+    // stores (billing 1.2.2 root cause).
+    const isTest =
+      Boolean(plan?.partnerDevelopment) ||
+      /develop|partner|staff|trial|sandbox|preview/i.test(plan?.displayName ?? "");
     devStoreIsTest.set(shop, isTest);
     return isTest;
   } catch {
@@ -188,17 +217,32 @@ export async function isDevStore(shop: string): Promise<boolean> {
     const { admin } = await shopify.unauthenticated.admin(shop);
     const resp = await admin.graphql(
       `#graphql
-      query StorePlanIsDev { shop { plan { partnerDevelopment } } }`,
+      query StorePlanIsDev { shop { plan { partnerDevelopment displayName } } }`,
     );
     const body = (await resp.json()) as {
-      data?: { shop?: { plan?: { partnerDevelopment?: boolean } } };
+      data?: {
+        shop?: { plan?: { partnerDevelopment?: boolean; displayName?: string } };
+      };
     };
-    const dev = Boolean(body?.data?.shop?.plan?.partnerDevelopment);
+    const plan = body?.data?.shop?.plan;
+    // A reviewer can ONLY place TEST orders, so those must accrue during review —
+    // but `partnerDevelopment` alone is unreliable (a Shopify App-Review store is
+    // not always flagged, the same failure mode that made billing 1.2.2 recur).
+    // So ALSO treat a non-production plan name (Developer Preview / Partner /
+    // Staff / Trial / Sandbox / Plus Partner Sandbox) as a dev store. A real paid
+    // store ("Basic"/"Shopify"/"Advanced"/"Shopify Plus") stays false and keeps
+    // skipping the merchant's own Bogus-Gateway test orders.
+    const dev =
+      Boolean(plan?.partnerDevelopment) ||
+      /develop|partner|staff|trial|sandbox|preview/i.test(plan?.displayName ?? "");
     devStoreIsTest.set(shop, dev);
     return dev;
   } catch {
-    // On error default to REAL store — never accrue on real test orders.
-    return false;
+    // Review-safety: if we cannot CONFIRM the store type, accrue the test order
+    // rather than silently award nothing — a failed probe must never fail review.
+    // Not cached: a real store's own rare test order during an outage accrues once
+    // (trivially adjustable), and the next order re-probes for the real answer.
+    return true;
   }
 }
 

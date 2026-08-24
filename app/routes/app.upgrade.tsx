@@ -1,7 +1,7 @@
 import { PRICE_MONTHLY, PRICE_ANNUAL, PRICE_ANNUAL_PER_MO, ANNUAL_BADGE } from "../pricing";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
-import { Form, useNavigation } from "@remix-run/react";
+import { json, redirect } from "@remix-run/node";
+import { Form, useLoaderData, useNavigation } from "@remix-run/react";
 import {
   Page,
   Card,
@@ -15,7 +15,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
   authenticate,
-  hasProPlan,
+  activeSubscription,
   PRO_MONTHLY,
   PRO_ANNUAL,
   resolveBillingIsTest,
@@ -35,15 +35,34 @@ const FEATURES: { label: string; free: boolean; pro: boolean }[] = [
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session, billing } = await authenticate.admin(request);
   const isTest = await resolveBillingIsTest(admin, session.shop);
-  if (await hasProPlan(billing, isTest)) throw redirect("/app");
-  return null;
+  // The active plan (if any) — so a Pro merchant can CHANGE billing period or
+  // CANCEL here (App Store review 1.2.3), instead of being redirected away.
+  const sub = await activeSubscription(billing, isTest);
+  return json({ current: sub ? sub.plan : null });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session, billing } = await authenticate.admin(request);
   const form = await request.formData();
-  const plan = form.get("plan") === "annual" ? PRO_ANNUAL : PRO_MONTHLY;
   const isTest = await resolveBillingIsTest(admin, session.shop);
+
+  // Downgrade to Free: cancel the active subscription (1.2.3 — no support ticket,
+  // no reinstall). Re-fetch the sub id server-side; never trust the client.
+  if (form.get("intent") === "cancel") {
+    const sub = await activeSubscription(billing, isTest);
+    if (sub) {
+      try {
+        await billing.cancel({ subscriptionId: sub.id, isTest, prorate: true });
+      } catch {
+        // Best-effort — if the cancel races another change, the reload reconciles.
+      }
+    }
+    return redirect("/app/upgrade");
+  }
+
+  // Subscribe, or switch billing period (billing.request replaces any existing
+  // subscription on Shopify's managed confirmation page).
+  const plan = form.get("plan") === "annual" ? PRO_ANNUAL : PRO_MONTHLY;
   return billing.request({ plan, isTest });
 };
 
@@ -122,20 +141,60 @@ export default function Upgrade() {
   const nav = useNavigation();
   const submitting = nav.state === "submitting";
   const submittingPlan = nav.formData?.get("plan");
+  const submittingIntent = nav.formData?.get("intent");
+  const { current } = useLoaderData<typeof loader>();
 
   return (
     <Page narrowWidth>
-      <TitleBar title="Upgrade to Pro" />
+      <TitleBar title={current ? "Your plan" : "Upgrade to Pro"} />
       <BlockStack gap="400">
         <Text as="p" variant="bodyMd">
-          <b>
-            Pro lets customers redeem points as store credit — applied in one tap
-            at checkout, with no codes to copy and no popups.
-          </b>{" "}
-          It&rsquo;s the redemption flow shoppers actually finish. Plus one flat
-          price, unlimited orders and no overage fees, ever. 14-day free trial,
-          cancel anytime.
+          {current ? (
+            <b>
+              Manage your plan below — switch billing period or cancel anytime.
+              Nothing here needs a support ticket or a reinstall.
+            </b>
+          ) : (
+            <>
+              <b>
+                Pro lets customers redeem points as store credit — applied in one
+                tap at checkout, with no codes to copy and no popups.
+              </b>{" "}
+              It&rsquo;s the redemption flow shoppers actually finish. Plus one
+              flat price, unlimited orders and no overage fees, ever. 14-day free
+              trial, cancel anytime.
+            </>
+          )}
         </Text>
+
+        {current ? (
+          <Card>
+            <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h3" variant="headingMd">
+                  Your plan
+                </Text>
+                <Badge tone="success">{`Pro · ${current} · active`}</Badge>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Change your billing period below, or downgrade to Free — your
+                points program and storefront widget stay on the Free plan.
+              </Text>
+              <Form method="post">
+                <input type="hidden" name="intent" value="cancel" />
+                <Button
+                  submit
+                  variant="plain"
+                  tone="critical"
+                  loading={submitting && submittingIntent === "cancel"}
+                  disabled={submitting}
+                >
+                  Cancel Pro (downgrade to Free)
+                </Button>
+              </Form>
+            </BlockStack>
+          </Card>
+        ) : null}
 
         <Compare />
 
@@ -145,7 +204,9 @@ export default function Upgrade() {
               <Text as="h3" variant="headingMd">
                 Annual
               </Text>
-              <Badge tone="success">{ANNUAL_BADGE}</Badge>
+              <Badge tone="success">
+                {current === "Annual" ? "Current plan" : ANNUAL_BADGE}
+              </Badge>
             </InlineStack>
             <Text as="p" variant="headingLg">
               {PRICE_ANNUAL}{" "}
@@ -161,12 +222,16 @@ export default function Upgrade() {
               <input type="hidden" name="plan" value="annual" />
               <Button
                 submit
-                variant="primary"
+                variant={!current ? "primary" : undefined}
                 fullWidth
                 loading={submitting && submittingPlan === "annual"}
-                disabled={submitting}
+                disabled={submitting || current === "Annual"}
               >
-                Start free trial
+                {!current
+                  ? "Start free trial"
+                  : current === "Annual"
+                    ? "Current plan"
+                    : "Switch to Annual"}
               </Button>
             </Form>
           </BlockStack>
@@ -174,9 +239,14 @@ export default function Upgrade() {
 
         <Card>
           <BlockStack gap="200">
-            <Text as="h3" variant="headingMd">
-              Monthly
-            </Text>
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h3" variant="headingMd">
+                Monthly
+              </Text>
+              {current === "Monthly" ? (
+                <Badge tone="success">Current plan</Badge>
+              ) : null}
+            </InlineStack>
             <Text as="p" variant="headingLg">
               {PRICE_MONTHLY}{" "}
               <Text as="span" variant="bodyMd" tone="subdued">
@@ -192,9 +262,13 @@ export default function Upgrade() {
                 submit
                 fullWidth
                 loading={submitting && submittingPlan === "monthly"}
-                disabled={submitting}
+                disabled={submitting || current === "Monthly"}
               >
-                Start free trial
+                {!current
+                  ? "Start free trial"
+                  : current === "Monthly"
+                    ? "Current plan"
+                    : "Switch to Monthly"}
               </Button>
             </Form>
           </BlockStack>
@@ -202,10 +276,12 @@ export default function Upgrade() {
 
         <TrustBlock />
 
-        <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-          $0 due today. Your 14-day free trial starts now — cancel anytime in
-          Settings before it ends.
-        </Text>
+        {!current ? (
+          <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
+            $0 due today. Your 14-day free trial starts now — cancel anytime in
+            Settings before it ends.
+          </Text>
+        ) : null}
         <Text as="p" variant="bodyXs" tone="subdued" alignment="center">
           Billed securely through Shopify.
         </Text>
