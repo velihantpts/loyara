@@ -42,7 +42,19 @@ export async function maybeRequestReview(
     where: { shop },
     select: { reviewRequestedAt: true },
   });
-  if (cfg?.reviewRequestedAt) return false;
+  // Re-askable after a short cooldown instead of blocking FOREVER. The first ask
+  // often lands inside Shopify's "recently-installed" window (setup finishes <24h
+  // after install), where the reviews API silently declines — and permanently
+  // setting the flag then meant we NEVER asked again, killing our first App Store
+  // reviews. The client (requestReviewOnce) only records success in localStorage
+  // and Shopify enforces its own frequency, so this cooldown just paces the retry
+  // until the modal actually shows.
+  const REVIEW_RETRY_MS = 2 * 24 * 60 * 60 * 1000;
+  if (
+    cfg?.reviewRequestedAt &&
+    Date.now() - cfg.reviewRequestedAt.getTime() < REVIEW_RETRY_MS
+  )
+    return false;
   await prisma.shopConfig.update({
     where: { shop },
     data: { reviewRequestedAt: new Date() },
