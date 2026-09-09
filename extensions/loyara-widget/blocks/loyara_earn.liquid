@@ -1,0 +1,260 @@
+{% comment %}
+  Loyara — "Earn points" PDP nudge (app block, target: section).
+  A compact, honest line/card that sits by the product price and tells the shopper
+  how many points THIS purchase earns. Loyara sells the outcome (points/rewards):
+  warm, truthful, zero dark patterns.
+
+  REAL DATA ONLY. The point figure is computed from two real sources:
+    • the product price ({{ product.price }}, in cents) rendered into data-price, and
+    • earn.pointsPerDollar from the SAME signed App Proxy the widget uses
+      (GET /apps/loyalty/state → /proxy/state).
+  points = floor( (price / 100) * pointsPerDollar )  — this matches the server's
+  accrual (earnFromOrder: floor(basis * pointsPerDollar)) and IGNORES the Pro VIP
+  multiplier, so it is the honest FLOOR a shopper earns (VIP members earn ≥ this).
+  Nothing is ever fabricated: if we can't compute a real number (logged-out with no
+  rate, fetch fails, price 0, rate 0, or program paused) we degrade to a generic
+  truthful line ("Earn points on every order") or hide. No fake urgency/scarcity.
+
+  PRESETS (block.settings.preset):
+    • "line"     (default, l09) — a quiet inline whisper next to the price.
+    • "progress" (l12) — progress-to-reward: uses the member's REAL balance + the
+      nearest reward tier to show "this order gets you to <reward>". Only shown to a
+      logged-in member with a balance and an unreached tier; otherwise it falls back
+      to the plain line.
+
+  The block always renders when enabled (addability, like the widget/Verda blocks);
+  the script fills in the real numbers after the proxy responds.
+{% endcomment %}
+{% if block.settings.enable %}
+  {%- assign preset = block.settings.preset | default: 'line' -%}
+  {% style %}
+    #shopify-block-{{ block.id }} .lye {
+      /* one merchant accent, with fallbacks; neutrals inherit the theme's text
+         colour via currentColor so the block matches light AND dark storefronts */
+      --lye-accent: {{ block.settings.accent_color | default: '#1a1a1a' }};
+      --lye-on-accent: {{ block.settings.on_accent_color | default: '#ffffff' }};
+      --lye-muted: rgba(120,120,120,1);
+      --lye-muted: color-mix(in srgb, currentColor 62%, transparent);
+      --lye-line: rgba(120,120,120,.28);
+      --lye-line: color-mix(in srgb, currentColor 18%, transparent);
+      --lye-track: rgba(120,120,120,.18);
+      --lye-track: color-mix(in srgb, currentColor 12%, transparent);
+      --lye-surface: rgba(120,120,120,.05);
+      --lye-surface: color-mix(in srgb, currentColor 4%, transparent);
+      --lye-tint: rgba(120,120,120,.16);
+      --lye-tint: color-mix(in srgb, var(--lye-accent) 14%, transparent);
+      font: inherit; color: inherit; box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+    #shopify-block-{{ block.id }} .lye * { box-sizing: border-box; }
+    #shopify-block-{{ block.id }} .lye[hidden] { display: none; }
+
+    /* shared line layout (both presets fall back to this line) */
+    #shopify-block-{{ block.id }} .lye-line {
+      margin: 0; display: inline-flex; align-items: baseline; gap: 7px; line-height: 1.5;
+    }
+    /* glyph (accent) */
+    #shopify-block-{{ block.id }} .lye-glyph {
+      flex: 0 0 auto; display: inline-block; width: 15px; height: 15px;
+      position: relative; top: 2px; color: var(--lye-accent, #1a1a1a);
+    }
+    #shopify-block-{{ block.id }} .lye-glyph svg { display: block; width: 100%; height: 100%; }
+
+    /* ---------- preset: line (quiet inline whisper) ---------- */
+    #shopify-block-{{ block.id }} .lye--line { margin: 8px 0 0; }
+    #shopify-block-{{ block.id }} .lye--line .lye-line {
+      font-size: .85em; color: var(--lye-muted);
+    }
+    #shopify-block-{{ block.id }} .lye-strong { font-weight: 700; color: inherit; }
+    #shopify-block-{{ block.id }} .lye-join {
+      font: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+      color: var(--lye-accent, #1a1a1a); text-decoration: underline; text-underline-offset: 2px;
+      display: inline-flex; align-items: center; min-height: 24px;
+    }
+    #shopify-block-{{ block.id }} .lye-join:focus-visible { outline: 2px solid var(--lye-accent, #1a1a1a); outline-offset: 2px; border-radius: 4px; }
+    #shopify-block-{{ block.id }} .lye-sep { color: var(--lye-line); }
+
+    /* ---------- preset: progress (progress-to-reward card) ---------- */
+    #shopify-block-{{ block.id }} .lye--progress {
+      margin: 12px 0; padding: 14px 16px; border: 1px solid var(--lye-line);
+      border-radius: 12px; background: var(--lye-surface);
+    }
+    #shopify-block-{{ block.id }} .lye--progress .lye-line { margin: 0; }
+    #shopify-block-{{ block.id }} .lye-top { display: flex; align-items: center; gap: 10px; }
+    #shopify-block-{{ block.id }} .lye-mark {
+      flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+      background: var(--lye-accent, #1a1a1a); color: var(--lye-on-accent, #fff);
+    }
+    #shopify-block-{{ block.id }} .lye-mark svg { width: 16px; height: 16px; display: block; }
+    #shopify-block-{{ block.id }} .lye-head { min-width: 0; }
+    #shopify-block-{{ block.id }} .lye-earn { font-size: 1em; font-weight: 600; line-height: 1.25; margin: 0; }
+    #shopify-block-{{ block.id }} .lye-sub { font-size: .82em; color: var(--lye-muted); margin: 2px 0 0; line-height: 1.35; }
+    #shopify-block-{{ block.id }} .lye-prog { margin-top: 12px; }
+    #shopify-block-{{ block.id }} .lye-goal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: .82em; margin: 0 0 7px; }
+    #shopify-block-{{ block.id }} .lye-goal-lbl { font-weight: 600; }
+    #shopify-block-{{ block.id }} .lye-goal-num { color: var(--lye-muted); font-variant-numeric: tabular-nums; }
+    #shopify-block-{{ block.id }} .lye-bar { position: relative; height: 9px; border-radius: 99px; background: var(--lye-track); overflow: hidden; }
+    #shopify-block-{{ block.id }} .lye-have { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--lye-accent, #1a1a1a); }
+    /* the boost this order adds — hatched so it isn't distinguished by colour alone */
+    #shopify-block-{{ block.id }} .lye-add {
+      position: absolute; top: 0; bottom: 0; border-radius: 0 99px 99px 0;
+      background: repeating-linear-gradient(-45deg, var(--lye-tint) 0 4px, transparent 4px 8px);
+    }
+    #shopify-block-{{ block.id }} .lye-cross { margin: 11px 0 0; font-size: .84em; line-height: 1.4; }
+    #shopify-block-{{ block.id }} .lye-check { color: var(--lye-accent, #1a1a1a); font-weight: 700; margin-right: 3px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #shopify-block-{{ block.id }} .lye * { transition: none; }
+    }
+  {% endstyle %}
+
+  {%- assign price_cents = product.price | default: 0 -%}
+  <div
+    id="loyara-earn-{{ block.id }}"
+    class="lye lye--{{ preset }}"
+    data-price="{{ price_cents }}"
+    data-preset="{{ preset }}"
+    data-login="{{ routes.account_login_url }}"
+    {{ block.shopify_attributes }}
+  >
+    {%- comment -%} SSR default: a generic, truthful line. JS upgrades it with the
+      real point figure once /apps/loyalty/state responds. Never a fabricated number. {%- endcomment -%}
+    <p class="lye-line">
+      <span class="lye-glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.75l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.02l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85L12 2.75z" fill="currentColor"/></svg>
+      </span>
+      <span class="lye-msg">Earn points on every order</span>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.getElementById("loyara-earn-{{ block.id }}");
+      if (!root) return;
+      var preset = root.getAttribute("data-preset") || "line";
+      var priceCents = parseInt(root.getAttribute("data-price"), 10);
+      var loginUrl = root.getAttribute("data-login") || "";
+      var priceAmt = (isFinite(priceCents) && priceCents > 0) ? priceCents / 100 : 0;
+      var state = null;
+
+      function nfmt(v) { try { return new Intl.NumberFormat().format(v); } catch (e) { return "" + v; } }
+      function money(v) {
+        try { return new Intl.NumberFormat(undefined, { style: "currency", currency: (state && state.currency) || "USD" }).format(v); }
+        catch (e) { return v + " " + ((state && state.currency) || ""); }
+      }
+      function rewardLabel(t) {
+        if (state && state.redemptionMode === "store_credit" && t.type !== "percent") return money(t.value) + " store credit";
+        return t.type === "percent" ? (t.value + "% off") : (money(t.value) + " off");
+      }
+      function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+      // The quiet inline line (used by "line" preset, and as the fallback for
+      // "progress" when there's no member balance / no unreached tier).
+      function renderLine(earned, loggedIn) {
+        var msg;
+        if (earned > 0) {
+          msg = 'Earn <span class="lye-strong">' + nfmt(earned) + ' point' + (earned === 1 ? '' : 's') + '</span> with this purchase';
+        } else {
+          msg = 'Earn points on every order';
+        }
+        if (!loggedIn) {
+          msg += ' <span class="lye-sep" aria-hidden="true">·</span> '
+            + (loginUrl ? '<a class="lye-join" href="' + esc(loginUrl) + '">Join to earn</a>' : '<span class="lye-strong">join to earn</span>');
+        }
+        var el = root.querySelector(".lye-msg");
+        if (el) el.innerHTML = msg;
+      }
+
+      // Progress-to-reward card (l12). Only when we have real member data.
+      function renderProgress(earned) {
+        var balance = state.balance;
+        var tiers = state.tiers || [];
+        // nearest reward the member hasn't reached yet (tiers are sorted ascending)
+        var nextTier = null;
+        for (var i = 0; i < tiers.length; i++) { if (tiers[i].points > balance) { nextTier = tiers[i]; break; } }
+        if (!nextTier || earned <= 0) { renderLine(earned, true); return; }
+
+        var target = nextTier.points;
+        var projected = balance + earned;
+        var crosses = projected >= target;
+        var havePct = Math.max(0, Math.min(100, balance / target * 100));
+        var addPct = Math.max(0, Math.min(100 - havePct, earned / target * 100));
+        var remaining = Math.max(0, target - projected);
+        var label = rewardLabel(nextTier);
+
+        var cross;
+        if (crosses) {
+          cross = '<p class="lye-cross"><span class="lye-check" aria-hidden="true">✓</span>'
+            + 'This order gets you to <span class="lye-strong">' + esc(label) + '</span> — '
+            + "you'll have " + nfmt(projected) + ' points, ready to redeem.</p>';
+        } else {
+          cross = '<p class="lye-cross">'
+            + "You'll have " + nfmt(projected) + ' points — <span class="lye-strong">'
+            + nfmt(remaining) + ' to go</span> for ' + esc(label) + '.</p>';
+        }
+
+        root.innerHTML =
+          '<div class="lye-top">'
+          + '<span class="lye-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.6 5.6L21 8.4l-4.5 4.3 1.1 6.3L12 16l-5.6 3 1.1-6.3L3 8.4l6.4-.8z"/></svg></span>'
+          + '<div class="lye-head">'
+          + '<p class="lye-earn">Earn <span class="lye-strong">' + nfmt(earned) + ' point' + (earned === 1 ? '' : 's') + '</span> with this purchase</p>'
+          + '<p class="lye-sub">You have ' + nfmt(balance) + ' point' + (balance === 1 ? '' : 's') + ' now</p>'
+          + '</div></div>'
+          + '<div class="lye-prog">'
+          + '<p class="lye-goal"><span class="lye-goal-lbl">Next reward · ' + esc(label) + '</span><span class="lye-goal-num">' + nfmt(target) + ' pts</span></p>'
+          + '<div class="lye-bar" role="img" aria-label="You have ' + nfmt(balance) + ' of ' + nfmt(target) + ' points. This purchase adds ' + nfmt(earned) + ', reaching ' + nfmt(projected) + ' points.">'
+          + '<span class="lye-have" style="width:' + havePct.toFixed(1) + '%"></span>'
+          + '<span class="lye-add" style="left:' + havePct.toFixed(1) + '%;width:' + addPct.toFixed(1) + '%"></span>'
+          + '</div></div>'
+          + cross;
+      }
+
+      function apply() {
+        // Program off → don't nudge about points that can't be earned. Hide cleanly.
+        if (!state || !state.active) { root.hidden = true; return; }
+        var ppd = (state.earn && state.earn.pointsPerDollar) || 0;
+        var earned = (priceAmt > 0 && ppd > 0) ? Math.floor(priceAmt * ppd) : 0;
+        var loggedIn = !!state.loggedIn;
+        if (preset === "progress" && loggedIn && typeof state.balance === "number") {
+          renderProgress(earned);
+        } else {
+          renderLine(earned, loggedIn);
+        }
+      }
+
+      function run() {
+        fetch("/apps/loyalty/state", { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d && d.ok) { state = d; apply(); } })
+          // On failure, leave the SSR generic line as-is (honest, no fabricated number).
+          .catch(function () {});
+      }
+
+      if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 2000 });
+      else setTimeout(run, 1);
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Earn points (Loyara)",
+  "target": "section",
+  "settings": [
+    { "type": "checkbox", "id": "enable", "label": "Show the earn-points nudge", "default": true },
+    {
+      "type": "select",
+      "id": "preset",
+      "label": "Style",
+      "options": [
+        { "value": "line", "label": "Inline line (recommended)" },
+        { "value": "progress", "label": "Progress to reward" }
+      ],
+      "default": "line"
+    },
+    { "type": "paragraph", "content": "Shows how many points this product earns, using your live earn rate from Loyara and the product price. The number appears once your program is active; it stays a generic line for logged-out shoppers or if the rate can't be read. Place it near the price or Add to cart." },
+    { "type": "color", "id": "accent_color", "label": "Accent color", "default": "#1a1a1a" },
+    { "type": "color", "id": "on_accent_color", "label": "Text on accent", "default": "#ffffff" }
+  ]
+}
+{% endschema %}

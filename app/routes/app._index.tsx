@@ -1,5 +1,5 @@
 import { PRICE_MONTHLY } from "../pricing";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import {
@@ -183,6 +183,21 @@ function Gauge({ value, caption }: { value: number; caption: string }) {
   );
 }
 
+// House-style v2 accent (Loyara = warm magenta, hue 336), applied only to the
+// app-owned first-run welcome. Loyara does NOT scan a store, so — unlike the
+// compliance apps' scan reveal — this is a truthful WELCOME, never a fake
+// "checking your store". The dashboard is already outcome-framed (Gauge + Stats),
+// so Polaris keeps owning the chrome. See memory: design-system-2026-09.
+const ACCENT_H = 336;
+const HOUSE_CSS = `
+.ly-reveal{ animation: lyIn .4s ease-out both; }
+@keyframes lyIn{ from{ opacity:0; transform: translateY(-4px);} to{ opacity:1; transform:none;} }
+.ly-mark{ width:28px; height:28px; flex:0 0 auto; border-radius:8px;
+  background: hsl(${ACCENT_H} 62% 45%); color:#fff; display:grid; place-items:center; }
+.ly-mark svg{ width:16px; height:16px; display:block; }
+@media (prefers-reduced-motion: reduce){ .ly-reveal{ animation:none;} }
+`;
+
 export default function Index() {
   const data = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
@@ -209,10 +224,51 @@ export default function Index() {
   const onboardingDone =
     (data.onboarded ? 1 : 0) + (data.stats.members > 0 ? 1 : 0);
 
+  // First-run welcome (house-style v2, once per browser). Honest: a warm intro to
+  // the program, NOT a fabricated scan. Numbers shown are the real programStats.
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("loyara-first-run-seen")) return;
+      localStorage.setItem("loyara-first-run-seen", "1");
+      setShowWelcome(true);
+      const t = setTimeout(() => setShowWelcome(false), 3000);
+      return () => clearTimeout(t);
+    } catch {
+      /* private mode / no storage — skip the intro */
+    }
+  }, []);
+
   return (
     <Page>
       <TitleBar title={BRAND} />
+      <style dangerouslySetInnerHTML={{ __html: HOUSE_CSS }} />
       <BlockStack gap="500">
+        {showWelcome && (
+          <div className="ly-reveal">
+            <Card>
+              <InlineStack gap="300" blockAlign="center" wrap={false}>
+                <span className="ly-mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2.6l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.02l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z" />
+                  </svg>
+                </span>
+                <BlockStack gap="100">
+                  <Text as="p" variant="headingMd">
+                    {data.stats.members > 0
+                      ? "Welcome back to Loyara"
+                      : "Welcome to Loyara"}
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {data.stats.members > 0
+                      ? `Your rewards program at a glance — ${nf.format(data.stats.members)} member${data.stats.members === 1 ? "" : "s"} and ${nf.format(data.stats.outstanding)} unredeemed points.`
+                      : "Let's get your rewards program live — set your earn rate and rewards, then add the widget to your storefront."}
+                  </Text>
+                </BlockStack>
+              </InlineStack>
+            </Card>
+          </div>
+        )}
         {!data.programActive && (
           <Banner tone="warning" title="Your loyalty program is paused">
             <Text as="p" variant="bodyMd">
