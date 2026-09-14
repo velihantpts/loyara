@@ -4,6 +4,6 @@
 // card can never quietly show a stale or false number.
 // Regenerate after changing the widget: node scripts/measure-widget.mjs
 export const WIDGET_SIZE = {
-  rawKB: 15.9,
-  gzipKB: 4.7,
+  rawKB: 22.4,
+  gzipKB: 6.3,
 };
