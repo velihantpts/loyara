@@ -1,0 +1,27 @@
+name: deploy-on-green
+
+# "ci" preflight yesil olunca (yalnizca push/main) Coolify deploy tetiklenir.
+# GithubApp auto-deploy panelden kapatildi; tek deploy tetigi budur.
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+
+jobs:
+  deploy:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coolify deploy (sadece yesilde)
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          APP_UUID: a275rw9z8uc2vz48faf5g97t
+        run: |
+          echo "ci gecti — Coolify deploy tetikleniyor..."
+          curl -fsS -X GET "http://204.168.173.85:8000/api/v1/deploy?uuid=${APP_UUID}" \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}"
+          echo; echo "Deploy tetiklendi."
